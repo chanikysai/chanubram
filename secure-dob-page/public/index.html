@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chanubram - A Love Story</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .header {
+      background: linear-gradient(90deg, #54216d, #dc2430);
+      color: white;
+      padding: 20px;
+      width: 100%;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+    }
+    .header p {
+      margin: 5px 0 0;
+      font-size: 1.1rem;
+    }
+    .content {
+      max-width: 1200px;
+      margin: 30px auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      width: 300px;
+      text-align: left;
+    }
+    .card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    .card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+    .card-content {
+      padding: 20px;
+    }
+    .card-content h2 {
+      margin: 0 0 10px;
+      font-size: 1.5rem;
+      color: #333;
+    }
+    .card-content p {
+      margin: 0;
+      color: #666;
+      font-size: 1rem;
+    }
+    .form-section {
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      margin: 20px auto;
+    }
+    .form-section h2 {
+      margin: 0 0 20px;
+      font-size: 2rem;
+    }
+    .form-section p {
+      font-size: 1rem;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    label {
+      display: block;
+      margin: 15px 0 5px;
+      font-size: 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    button {
+      background: #ff5f6d;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #ff2b4c;
+    }
+    .footer {
+      margin-top: 40px;
+      background-color: #7b4397;
+      color: white;
+      padding: 15px;
+      width: 100%;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: bold;
+      box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Welcome to Chanubram</h1>
+    <p>A page dedicated to the beautiful journey of Chanu and Bram, a love that shows how Chanu loved Bram in his life. ❤️</p>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <img src="images/hero-bg.jpg" alt="Hero Background">
+      <div class="card-content">
+        <h2>The Story</h2>
+        <p>Explore the memories, the passion, and the story behind this eternal bond.</p>
+      </div>
+    </div>
+    <div class="card">
+      <img src="images/image1.jpg" alt="Romantic Moments">
+      <div class="card-content">
+        <h2>Lifetime Moments</h2>
+        <p>Revisit the beautiful moments that define Chanu and Bram's love.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <form id="dobForm" action="/check-dob" method="POST">
+      <h2>Secret Page Access</h2>
+      <p>Only Bram can enter this secret page. Please enter your Date of Birth.</p>
+      <label for="bramDob">Bram's Date of Birth (YYYY-MM-DD):</label>
+      <input type="date" id="bramDob" name="bramDob" required>
+      <label for="chanuDob">Chanu's Date of Birth (YYYY-MM-DD):</label>
+      <input type="date" id="chanuDob" name="chanuDob" required>
+      <input type="hidden" id="latitude" name="latitude">
+      <input type="hidden" id="longitude" name="longitude">
+      <button type="submit">Enter the Secret Page</button>
+    </form>
+  </div>
+
+  <div class="footer">
+    <p>✨ New features will be updated soon! Chanu is working on making this the most loved website. Stay tuned! ❤️</p>
+  </div>
+
+  <script>
+    function getLocation(event) {
+      event.preventDefault(); // Stop form submission until location is retrieved
+  
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+  
+            document.getElementById("latitude").value = latitude;
+            document.getElementById("longitude").value = longitude;
+  
+            console.log(`Captured Location - Latitude: ${latitude}, Longitude: ${longitude}`);
+  
+            event.target.submit(); // Submit the form after setting location
+          },
+          (error) => {
+            console.error("Error getting location:", error.message);
+            alert("Please allow location access to proceed.");
+          }
+        );
+      } else {
+        alert("Geolocation is not supported by your browser.");
+      }
+    }
+  </script>
+  
