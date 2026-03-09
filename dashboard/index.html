@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #roadmap-container, #pr-review-container { border: 1px solid #ccc; padding: 15px; margin-top: 20px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Gemini CLI Dashboard</h1>
+
+    <h2>PR Review</h2>
+    <div id="pr-review-container">
+        Loading PR Review...
+    </div>
+
+    <h2>Project Roadmap Generator</h2>
+    <input type="text" id="goals-input" placeholder="Enter high-level project goals" style="width: 300px; padding: 8px;">
+    <button id="generate-roadmap-btn">Generate Roadmap</button>
+    <div id="roadmap-container">
+        Roadmap will appear here.
+    </div>
+
+    <script type="module" src="./js/app.js"></script>
+</body>
+</html>

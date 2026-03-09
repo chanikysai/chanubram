@@ -1,66 +1,104 @@
-// src/tasks/roadmap-generator.test.ts
+import { generateRoadmap, updateRoadmap } from '../src/tasks/roadmap-generator.js';
+import { performCodebaseAnalysis } from '../src/analysis/codebase-analyzer.js';
+import { getProjectKnowledge } from '../src/knowledge/project-knowledge.js';
+import { analyzeCodebaseForRoadmap } from '../src/analysis/llm-analyzer.js';
+import { parseRoadmapContent } from '../src/tasks/roadmap-parser.js';
 
-import { generateProjectRoadmap } from './roadmap-generator.js';
+// Mock dependencies
+jest.mock('../src/analysis/codebase-analyzer.js');
+jest.mock('../src/knowledge/project-knowledge.js');
+jest.mock('../src/analysis/llm-analyzer.js');
+jest.mock('../src/tasks/roadmap-parser.js');
 
-function assert(condition, message) {
-  if (!condition) {
-    console.error(`Test Failed: ${message}`);
-    process.exit(1);
-  }
-}
+describe('roadmap-generator', () => {
+  beforeEach(() => {
+    // Reset mocks before each test
+    performCodebaseAnalysis.mockClear();
+    getProjectKnowledge.mockClear();
+    analyzeCodebaseForRoadmap.mockClear();
+    parseRoadmapContent.mockClear();
 
-async function runTests() {
-  console.log('Running tests for roadmap-generator.js...');
+    // Default mock implementations
+    performCodebaseAnalysis.mockReturnValue({ files: ['file1.js'], dependencies: ['dep1'] });
+    getProjectKnowledge.mockReturnValue({ currentFeatures: ['feat1'], techStack: ['tech1'] });
+    analyzeCodebaseForRoadmap.mockResolvedValue({ llmSuggestions: 'LLM generated roadmap content.', confidence: 0.9 });
+    parseRoadmapContent.mockReturnValue({ parsedData: 'Structured roadmap data' });
+  });
 
-  // Test Case 1: Happy path - basic roadmap generation
-  try {
-    const goals = "Develop a new e-commerce platform";
-    const context = { userId: "testUser1" };
-    const roadmap = await generateProjectRoadmap(goals, context);
+  describe('generateRoadmap', () => {
+    // Happy path test case
+    test('should generate a roadmap successfully with valid user goals', async () => {
+      const userGoals = 'Develop a new user authentication module.';
+      const roadmap = await generateRoadmap(userGoals);
 
-    assert(roadmap !== null, "Test Case 1 Failed: Roadmap should not be null.");
-    assert(typeof roadmap === 'object', "Test Case 1 Failed: Roadmap should be an object.");
-    assert(roadmap.title === "Generated Project Roadmap", "Test Case 1 Failed: Incorrect roadmap title.");
-    assert(roadmap.epics.length > 0, "Test Case 1 Failed: Roadmap should contain epics.");
-    assert(roadmap.epics[0].name === "Core Infrastructure Setup", "Test Case 1 Failed: Incorrect epic name.");
-    console.log('Test Case 1 Passed: Basic roadmap generation works.');
-  } catch (error) {
-    console.error('Test Case 1 Failed with exception:', error);
-    process.exit(1);
-  }
+      expect(performCodebaseAnalysis).toHaveBeenCalledTimes(1);
+      expect(getProjectKnowledge).toHaveBeenCalledTimes(1);
+      expect(analyzeCodebaseForRoadmap).toHaveBeenCalledTimes(1);
+      expect(analyzeCodebaseForRoadmap).toHaveBeenCalledWith(
+        {
+          codebase: { files: ['file1.js'], dependencies: ['dep1'] },
+          knowledge: { currentFeatures: ['feat1'], techStack: ['tech1'] },
+          userGoals: userGoals,
+        },
+        userGoals
+      );
+      expect(parseRoadmapContent).toHaveBeenCalledTimes(1);
+      expect(parseRoadmapContent).toHaveBeenCalledWith('LLM generated roadmap content.');
+      expect(roadmap).toEqual({ parsedData: 'Structured roadmap data' });
+    });
 
-  // Test Case 2: Edge case - empty goals
-  try {
-    const goals = "";
-    const context = { userId: "testUser2" };
-    const roadmap = await generateProjectRoadmap(goals, context);
+    // Edge case: empty user goals
+    test('should throw an error if user goals are empty', async () => {
+      await expect(generateRoadmap('')).rejects.toThrow('User goals cannot be empty.');
+      expect(performCodebaseAnalysis).not.toHaveBeenCalled();
+    });
 
-    assert(roadmap !== null, "Test Case 2 Failed: Roadmap should not be null for empty goals.");
-    assert(roadmap.epics.length > 0, "Test Case 2 Failed: Roadmap should still contain default epics for empty goals.");
-    console.log('Test Case 2 Passed: Handles empty goals gracefully.');
-  } catch (error) {
-    console.error('Test Case 2 Failed with exception:', error);
-    process.exit(1);
-  }
+    // Error handling: codebase analysis fails
+    test('should throw an error if codebase analysis fails', async () => {
+      performCodebaseAnalysis.mockImplementation(() => {
+        throw new Error('Codebase analysis failed');
+      });
 
-  // Test Case 3: Error handling - simulate an error (though dummy implementation doesn't throw)
-  // For actual error handling, one would mock dependencies to force errors.
-  try {
-    const goals = "Goals that might cause an error";
-    const context = { userId: "errorTest" };
-    // Assuming generateProjectRoadmap might return a specific error structure or throw
-    const roadmap = await generateProjectRoadmap(goals, context);
-    
-    // In a real scenario, we'd expect a specific error or a fallback.
-    // For this dummy, we just check it doesn't crash and returns a valid structure.
-    assert(roadmap !== null, "Test Case 3 Failed: Roadmap should not be null even with potential error conditions.");
-    console.log('Test Case 3 Passed: Dummy error handling scenario works.');
-  } catch (error) {
-    console.error('Test Case 3 Failed with unexpected exception:', error);
-    process.exit(1);
-  }
+      await expect(generateRoadmap('Some goals')).rejects.toThrow('Failed to generate roadmap: Codebase analysis failed');
+      expect(performCodebaseAnalysis).toHaveBeenCalledTimes(1);
+      expect(getProjectKnowledge).not.toHaveBeenCalled();
+    });
 
-  console.log('All roadmap-generator.ts tests passed!');
-}
+    // Error handling: LLM analysis fails
+    test('should throw an error if LLM analysis fails', async () => {
+      analyzeCodebaseForRoadmap.mockRejectedValue(new Error('LLM service unavailable'));
 
-runTests();
+      await expect(generateRoadmap('Some goals')).rejects.toThrow('Failed to generate roadmap: LLM service unavailable');
+      expect(performCodebaseAnalysis).toHaveBeenCalledTimes(1);
+      expect(getProjectKnowledge).toHaveBeenCalledTimes(1);
+      expect(analyzeCodebaseForRoadmap).toHaveBeenCalledTimes(1);
+      expect(parseRoadmapContent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateRoadmap', () => {
+    const mockRoadmap = { parsedData: 'Initial roadmap data' };
+
+    // Happy path test case
+    test('should update a roadmap successfully with valid instructions', async () => {
+      const updateInstructions = 'Add more details to user authentication epic.';
+      const updatedRoadmap = await updateRoadmap(mockRoadmap, updateInstructions);
+
+      expect(updatedRoadmap.updated).toBe(true);
+      expect(updatedRoadmap.updateInstructions).toBe(updateInstructions);
+      expect(updatedRoadmap.parsedData).toContain(mockRoadmap.parsedData);
+      expect(updatedRoadmap.parsedData).toContain(`Updated with: ${updateInstructions}`);
+    });
+
+    // Edge case: empty update instructions
+    test('should throw an error if update instructions are empty', async () => {
+      await expect(updateRoadmap(mockRoadmap, '')).rejects.toThrow('Update instructions cannot be empty.');
+    });
+
+    // Edge case: invalid existing roadmap
+    test('should throw an error if existing roadmap is null or invalid', async () => {
+      await expect(updateRoadmap(null, 'Some instructions')).rejects.toThrow('Existing roadmap must be a valid object.');
+      await expect(updateRoadmap('not an object', 'Some instructions')).rejects.toThrow('Existing roadmap must be a valid object.');
+    });
+  });
+});
