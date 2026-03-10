@@ -2,26 +2,12 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 // Import component
-import VendorDashboardPage from './VendorDashboardPage';
+// CORRECTED IMPORT PATH
+import VendorDashboardPage from '../pages/VendorDashboardPage'; // Import from ../pages/
 // Import specific functions and types from the API module
-// Import types for clarity in mock definitions
-import { Vendor, VendorRegistrationData, ApiError } from '../services/vendorApi'; 
+import * as vendorApi from '../../services/vendorApi'; // Import the module
+import { Vendor, VendorRegistrationData, ApiError } from '../../services/vendorApi'; // Import types
 import { useNavigate } from 'react-router-dom';
-
-// Mock individual functions from the API module
-const mockGetCurrentVendor = jest.fn();
-const mockRegisterVendor = jest.fn();
-
-// Mock the API module functions directly in the mock factory
-// This ensures that Jest has the correct mocks available when it resolves the module
-jest.mock('../../services/vendorApi', () => ({
-  getCurrentVendor: mockGetCurrentVendor,
-  registerVendor: mockRegisterVendor,
-  // Mocking types might be necessary if they are directly used in import statements that Jest struggles with,
-  // but usually, type imports don't cause runtime errors. Let's keep them here for completeness.
-  VendorRegistrationData: jest.fn(), 
-  ApiError: jest.fn(),
-}));
 
 // Mock react-router-dom
 const mockNavigate = jest.fn();
@@ -29,24 +15,27 @@ jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(() => mockNavigate), // Provide a mock implementation for useNavigate
 }));
 
+// Use spies for mocking functions
+const getCurrentVendorSpy = jest.spyOn(vendorApi, 'getCurrentVendor');
+const registerVendorSpy = jest.spyOn(vendorApi, 'registerVendor');
+
 describe('VendorDashboardPage', () => {
   beforeEach(() => {
-    // Reset mocks before each test
-    mockGetCurrentVendor.mockClear();
-    mockRegisterVendor.mockClear();
+    // Reset spies before each test
+    getCurrentVendorSpy.mockClear();
+    registerVendorSpy.mockClear();
     mockNavigate.mockClear();
-    // Reset component-specific state if it were global or persisted
   });
 
   test('shows loading state initially', () => {
     // Simulate no vendor found immediately
-    mockGetCurrentVendor.mockResolvedValue(null);
+    getCurrentVendorSpy.mockResolvedValue(null);
     render(<VendorDashboardPage />);
     expect(screen.getByText(/loading dashboard.../i)).toBeInTheDocument();
   });
 
   test('renders registration form if no vendor is found', async () => {
-    mockGetCurrentVendor.mockResolvedValue(null); // No vendor found
+    getCurrentVendorSpy.mockResolvedValue(null); // No vendor found
     render(<VendorDashboardPage />);
 
     // Wait for the loading state to disappear and the form to appear
@@ -67,7 +56,7 @@ describe('VendorDashboardPage', () => {
       status: 'approved',
       createdAt: new Date().toISOString(),
     };
-    mockGetCurrentVendor.mockResolvedValue(mockVendor); // Simulate finding a vendor
+    getCurrentVendorSpy.mockResolvedValue(mockVendor); // Simulate finding a vendor
 
     render(<VendorDashboardPage />);
 
@@ -80,7 +69,7 @@ describe('VendorDashboardPage', () => {
   });
 
   test('handles vendor registration submission and success', async () => {
-    mockGetCurrentVendor.mockResolvedValue(null); // Start as if no vendor is logged in
+    getCurrentVendorSpy.mockResolvedValue(null); // Start as if no vendor is logged in
     render(<VendorDashboardPage />);
 
     // Wait for the registration form to be visible
@@ -108,15 +97,15 @@ describe('VendorDashboardPage', () => {
       status: 'pending', // Typically pending after initial registration
       createdAt: new Date().toISOString(),
     };
-    mockRegisterVendor.mockResolvedValue(registeredVendor);
+    registerVendorSpy.mockResolvedValue(registeredVendor);
 
     // Click submit
     fireEvent.click(submitButton);
 
     // Wait for the component to update with the new vendor data
     await waitFor(() => {
-      expect(mockRegisterVendor).toHaveBeenCalledTimes(1);
-      expect(mockRegisterVendor).toHaveBeenCalledWith({
+      expect(registerVendorSpy).toHaveBeenCalledTimes(1);
+      expect(registerVendorSpy).toHaveBeenCalledWith({
         businessName: 'New Vendor Ltd.',
         email: 'new.vendor@example.com',
         phoneNumber: '987-654-3210',
@@ -129,7 +118,7 @@ describe('VendorDashboardPage', () => {
   });
 
   test('handles vendor registration API error', async () => {
-    mockGetCurrentVendor.mockResolvedValue(null); // Start as if no vendor is logged in
+    getCurrentVendorSpy.mockResolvedValue(null); // Start as if no vendor is logged in
     render(<VendorDashboardPage />);
 
     // Wait for the registration form to be visible
@@ -149,14 +138,14 @@ describe('VendorDashboardPage', () => {
 
     // Mock a registration error response
     const apiError: ApiError = { message: 'Email already in use.' };
-    mockRegisterVendor.mockRejectedValue(new Error(apiError.message));
+    registerVendorSpy.mockRejectedValue(new Error(apiError.message));
 
     // Click submit
     fireEvent.click(submitButton);
 
     // Wait for the error message to appear in the page's error display
     await waitFor(() => {
-      expect(mockRegisterVendor).toHaveBeenCalledTimes(1);
+      expect(registerVendorSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText(/email already in use./i)).toBeInTheDocument(); // Check for the error message displayed by the page
     });
     // Ensure dashboard is not rendered
@@ -173,7 +162,7 @@ describe('VendorDashboardPage', () => {
       status: 'approved',
       createdAt: new Date().toISOString(),
     };
-    mockGetCurrentVendor.mockResolvedValue(mockVendor);
+    getCurrentVendorSpy.mockResolvedValue(mockVendor);
     render(<VendorDashboardPage />);
 
     await screen.findByText(/manage products/i); // Wait for dashboard to load
@@ -186,7 +175,7 @@ describe('VendorDashboardPage', () => {
 
   test('handles error fetching vendor data', async () => {
     const errorMessage = 'Network Error';
-    mockGetCurrentVendor.mockRejectedValue(new Error(errorMessage)); // Simulate network error
+    getCurrentVendorSpy.mockRejectedValue(new Error(errorMessage)); // Simulate network error
 
     render(<VendorDashboardPage />);
 

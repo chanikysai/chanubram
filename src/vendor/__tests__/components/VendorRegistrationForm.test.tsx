@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 // CORRECTED IMPORT PATH
 import VendorRegistrationForm from '../../components/VendorRegistrationForm'; // Adjust path as needed
+// Import act from React for testing
+import { act } from 'react';
 
 describe('VendorRegistrationForm', () => {
   const mockSubmit = jest.fn();
@@ -15,7 +17,10 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('renders the registration form correctly', () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    // Use act to wrap rendering and interactions that might cause state updates
+    act(() => {
+      render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     expect(screen.getByRole('heading', { name: /vendor registration/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/business name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
@@ -25,7 +30,10 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('handles input changes', () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     const businessNameInput = screen.getByLabelText(/business name/i) as HTMLInputElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     const phoneNumberInput = screen.getByLabelText(/phone number/i) as HTMLInputElement;
@@ -43,7 +51,10 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('calls onSubmit with correct data on successful submission', async () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     const businessNameInput = screen.getByLabelText(/business name/i) as HTMLInputElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     const phoneNumberInput = screen.getByLabelText(/phone number/i) as HTMLInputElement;
@@ -55,7 +66,10 @@ describe('VendorRegistrationForm', () => {
     fireEvent.change(phoneNumberInput, { target: { value: '123-456-7890' } });
     fireEvent.change(contactPersonInput, { target: { value: 'John Doe' } });
 
-    fireEvent.click(submitButton);
+    // Use await for waitFor to ensure assertions are made after DOM updates
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
     await waitFor(() => {
       expect(mockSubmit).toHaveBeenCalledTimes(1);
@@ -69,10 +83,15 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('shows error message for missing required fields', async () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     const submitButton = screen.getByRole('button', { name: /register store/i });
 
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/Please fill in all required fields./i)).toBeInTheDocument();
@@ -82,7 +101,10 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('shows error message for invalid email format', async () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     const businessNameInput = screen.getByLabelText(/business name/i) as HTMLInputElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     const phoneNumberInput = screen.getByLabelText(/phone number/i) as HTMLInputElement;
@@ -95,7 +117,9 @@ describe('VendorRegistrationForm', () => {
     fireEvent.change(phoneNumberInput, { target: { value: '123-456-7890' } });
     fireEvent.change(contactPersonInput, { target: { value: 'John Doe' } });
 
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
     await waitFor(() => {
       // Expect to find the specific email error message
@@ -106,7 +130,10 @@ describe('VendorRegistrationForm', () => {
   });
     
   test('shows error message for invalid phone number format', async () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
+    });
     const businessNameInput = screen.getByLabelText(/business name/i) as HTMLInputElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     const phoneNumberInput = screen.getByLabelText(/phone number/i) as HTMLInputElement;
@@ -119,7 +146,9 @@ describe('VendorRegistrationForm', () => {
     fireEvent.change(phoneNumberInput, { target: { value: 'invalid-phone' } });
     fireEvent.change(contactPersonInput, { target: { value: 'John Doe' } });
 
-    fireEvent.click(submitButton);
+    await act(async () => {
+      fireEvent.click(submitButton);
+    });
 
     await waitFor(() => {
       // Expect to find the specific phone number error message
@@ -130,7 +159,10 @@ describe('VendorRegistrationForm', () => {
   });
 
   test('disables form and shows loading state when isLoading is true', () => {
-    render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={true} />);
+    let view;
+    act(() => {
+      view = render(<VendorRegistrationForm onSubmit={mockSubmit} onError={mockError} isLoading={true} />);
+    });
     const businessNameInput = screen.getByLabelText(/business name/i) as HTMLInputElement;
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     const phoneNumberInput = screen.getByLabelText(/phone number/i) as HTMLInputElement;
