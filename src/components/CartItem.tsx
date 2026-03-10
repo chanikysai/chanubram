@@ -1,47 +1,41 @@
-// src/components/CartItem.tsx - Updated to use Product type correctly
+// src/components/CartItem.tsx
 import React from 'react';
-import { useCart } from '../context/CartContext';
-import type { Product } from '../types/product';
+import { Product } from '../types/product';
+import { CartItem } from '../context/CartContext';
 
 interface CartItemProps {
-  item: {
-    product: Product;
-    quantity: number;
-  };
+  item: CartItem;
+  onUpdateQuantity: (productId: string, quantity: number) => void;
+  onRemove: (productId: string) => void;
 }
 
-const CartItem: React.FC<CartItemProps> = ({ item }) => {
-  const { updateQuantity, removeItem } = useCart();
+const CartItemComponent: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemove }) => {
+  const handleIncrease = () => {
+    onUpdateQuantity(item.id, item.quantity + 1);
+  };
 
-  const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity > 0) {
-      updateQuantity(item.product.id, newQuantity);
-    } else {
-      removeItem(item.product.id);
-    }
+  const handleDecrease = () => {
+    onUpdateQuantity(item.id, item.quantity - 1);
   };
 
   const handleRemove = () => {
-    removeItem(item.product.id);
+    onRemove(item.id);
   };
 
   return (
-    <div className="cart-item">
-      <div className="item-details">
-        <h3>{item.product.name}</h3>
-        <p>${item.product.price.toFixed(2)} each</p>
+    <div className="cart-item" style={{ border: '1px solid #ccc', margin: '10px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div>
+        <h3>{item.name}</h3>
+        <p>Price: ${item.price.toFixed(2)}</p>
       </div>
-      <div className="item-controls">
-        <button onClick={() => handleQuantityChange(item.quantity - 1)}>-</button>
-        <span>{item.quantity}</span>
-        <button onClick={() => handleQuantityChange(item.quantity + 1)}>+</button>
-        <button onClick={handleRemove}>Remove</button>
-      </div>
-      <div className="item-subtotal">
-        Subtotal: ${(item.product.price * item.quantity).toFixed(2)}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button onClick={handleDecrease} style={{ marginRight: '5px' }}>-</button>
+        <span style={{ margin: '0 10px', fontWeight: 'bold' }}>{item.quantity}</span>
+        <button onClick={handleIncrease} style={{ marginRight: '5px' }}>+</button>
+        <button onClick={handleRemove} style={{ backgroundColor: '#f8d7da', color: '#721c24', border: 'none', padding: '5px 10px', borderRadius: '3px' }}>Remove</button>
       </div>
     </div>
   );
 };
 
-export default CartItem;
+export default CartItemComponent;

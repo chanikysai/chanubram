@@ -33,11 +33,6 @@ const ProductPage: React.FC = () => {
   return (
     <div className="product-detail-page">
       <ProductDetail product={product} /> {/* Render ProductDetail */}
-      {isItemInCart ? (
-        <p style={{ textAlign: 'center', marginTop: '10px' }}>In Cart: {cartItem?.quantity}</p>
-      ) : (
-        <button onClick={handleAddToCart} style={{ display: 'block', margin: '10px auto' }}>Add to Cart</button>
-      )}
     </div>
   );
 };

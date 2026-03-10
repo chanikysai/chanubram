@@ -1,327 +1,292 @@
-import React, { ReactNode } from 'react';
-import { renderHook, act } from '@testing-library/react';
-import { CartProvider, useCart, CartItem } from '../context/CartContext'; // Assuming CartContext.tsx is in ../context/
+// src/__tests__/context/CartContext.test.tsx
+import React from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { CartProvider, useCart, CartItem } from '../../context/CartContext';
+import { Product } from '../../types/product';
 
 // Mock localStorage
 const mockLocalStorage = (() => {
-  let store: { [key: string]: string } = {};
+  let store: Record<string, string> = {};
   return {
     getItem: jest.fn((key: string) => store[key] || null),
     setItem: jest.fn((key: string, value: string) => {
       store[key] = value;
     }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
     clear: jest.fn(() => {
       store = {};
     }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
   };
 })();
+
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 
-const CART_STORAGE_KEY = 'shoppingCart';
+// Helper component to consume context and expose functions for testing
+const TestComponent: React.FC<{ productId?: string, productToAdd?: Product, quantityToUpdate?: number }> = ({
+  productId,
+  productToAdd,
+  quantityToUpdate,
+}) => {
+  const { items, addItem, removeItem, updateQuantity, clearCart } = useCart();
+
+  // Simulate actions based on props for specific tests
+  React.useEffect(() => {
+    if (productToAdd) {
+      addItem(productToAdd);
+    }
+  }, [productToAdd, addItem]);
+
+  React.useEffect(() => {
+    if (productId && quantityToUpdate !== undefined) {
+      updateQuantity(productId, quantityToUpdate);
+    }
+  }, [productId, quantityToUpdate, updateQuantity]);
+
+  return (
+    <div>
+      <div data-testid="cart-items">
+        {items.map((item) => (
+          <div key={item.id} data-testid={`cart-item-${item.id}`}>
+            {item.name} - Quantity: {item.quantity} - Price: {item.price}
+          </div>
+        ))}
+      </div>
+      <div data-testid="cart-count">{items.length}</div>
+      <button onClick={() => productToAdd && addItem(productToAdd)} data-testid="add-item-button">
+        Add Item
+      </button>
+      {productId && (
+        <button onClick={() => removeItem(productId)} data-testid={`remove-item-${productId}`}>
+          Remove Item {productId}
+        </button>
+      )}
+      {productId && quantityToUpdate !== undefined && (
+        <button onClick={() => updateQuantity(productId, quantityToUpdate)} data-testid={`update-quantity-${productId}`}>
+          Update Quantity {productId} to {quantityToUpdate}
+        </button>
+      )}
+      <button onClick={clearCart} data-testid="clear-cart-button">Clear Cart</button>
+    </div>
+  );
+};
 
 describe('CartContext', () => {
   beforeEach(() => {
     // Clear mock localStorage and reset mocks before each test
     mockLocalStorage.clear();
-    mockLocalStorage.getItem.mockClear();
-    mockLocalStorage.setItem.mockClear();
-    mockLocalStorage.removeItem.mockClear();
-    // Clear module cache to ensure fresh load of context
-    jest.resetModules();
-    // Re-import after reset if needed, or ensure the context is defined in a way that gets re-evaluated
-    // For simplicity here, we assume the context file itself isn't cached in a way that prevents re-initialization.
-    // If not, we might need to do more complex module mocking.
-  });
-
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <CartProvider>{children}</CartProvider>
-  );
-
-  // Test 1: Initial state and localStorage loading (happy path)
-  test('should initialize with empty cart or load from localStorage', () => {
-    const { result } = renderHook(() => useCart(), { wrapper });
-    expect(result.current.cartItems).toEqual([]);
-    expect(mockLocalStorage.getItem).toHaveBeenCalledWith(CART_STORAGE_KEY);
-
-    // Test loading from localStorage
-    const initialCartData: CartItem[] = [
-      { id: '1', name: 'Test Item 1', price: 10, quantity: 2 },
-    ];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    // Re-render hook to simulate re-initialization after localStorage is set
-    const { result: resultWithStorage } = renderHook(() => useCart(), { wrapper });
-    expect(resultWithStorage.current.cartItems).toEqual(initialCartData);
-    expect(resultWithStorage.current.getTotalItems()).toBe(2);
-    expect(resultWithStorage.current.getTotalPrice()).toBe(20);
-  });
-
-  // Test 2: Add item to cart (happy path using addToCart)
-  test('should add a new item to the cart using addToCart', () => {
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const newItem = { id: 'prod-1', name: 'Product A', price: 100 };
-
-    act(() => {
-      result.current.addToCart(newItem);
+    jest.clearAllMocks();
+    // Reset localStorage mock to default if it was modified by other tests
+    Object.defineProperty(window, 'localStorage', {
+      value: mockLocalStorage,
     });
-
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0]).toEqual({ ...newItem, quantity: 1 });
-    expect(result.current.getTotalItems()).toBe(1);
-    expect(result.current.getTotalPrice()).toBe(100);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1); // Called on first add
   });
 
-  // Test 3: Add existing item (should increment quantity using addToCart)
-  test('should increment quantity if item already exists in cart using addToCart', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
+  // Happy Path: Add a new item to an empty cart
+  test('should add a new item to the cart', () => {
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    render(
+      <CartProvider>
+        <TestComponent productToAdd={product} />
+      </CartProvider>
+    );
 
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const existingItem = { id: 'prod-1', name: 'Product A', price: 100 }; // Price shouldn't change on re-add
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+    expect(screen.queryByTestId(`cart-item-${product.id}`)).toBeNull();
 
-    act(() => {
-      result.current.addToCart(existingItem);
-    });
+    // Simulate adding the item via the button for explicit action test
+    fireEvent.click(screen.getByTestId('add-item-button'));
 
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0].quantity).toBe(2);
-    expect(result.current.getTotalItems()).toBe(2);
-    expect(result.current.getTotalPrice()).toBe(200);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2); // One for load, one for add
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+    expect(screen.getByTestId(`cart-item-${product.id}`)).toHaveTextContent('Laptop - Quantity: 1 - Price: 1200');
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [{ ...product, quantity: 1 }] }));
   });
 
-  // Test 4: addItem to cart (happy path) - New test for the addItem function
-  test('should add a new item to the cart using addItem', () => {
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const newProduct = { id: 'prod-prod1', name: 'Sample Product', price: 75 };
+  // Edge Case: Add the same item multiple times
+  test('should increase quantity when adding an existing item', () => {
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    // Initial state with one item
+    mockLocalStorage.setItem('cart', JSON.stringify({ items: [{ ...product, quantity: 1 }] }));
 
-    act(() => {
-      result.current.addItem(newProduct);
-    });
+    render(
+      <CartProvider>
+        <TestComponent productToAdd={product} />
+      </CartProvider>
+    );
 
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0]).toEqual({ ...newProduct, quantity: 1 });
-    expect(result.current.getTotalItems()).toBe(1);
-    expect(result.current.getTotalPrice()).toBe(75);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+    expect(screen.getByTestId(`cart-item-${product.id}`)).toHaveTextContent('Laptop - Quantity: 1 - Price: 1200');
+
+    // Add the same item again
+    fireEvent.click(screen.getByTestId('add-item-button'));
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1'); // Still 1 item type, but quantity increased
+    expect(screen.getByTestId(`cart-item-${product.id}`)).toHaveTextContent('Laptop - Quantity: 2 - Price: 1200');
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [{ ...product, quantity: 2 }] }));
   });
 
-  // Test 5: addItem to cart - increment quantity if item already exists
-  test('should increment quantity if item already exists in cart using addItem', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-prod1', name: 'Sample Product', price: 75, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const existingProduct = { id: 'prod-prod1', name: 'Sample Product', price: 75 };
-
-    act(() => {
-      result.current.addItem(existingProduct);
-    });
-
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0].quantity).toBe(2);
-    expect(result.current.getTotalItems()).toBe(2);
-    expect(result.current.getTotalPrice()).toBe(150);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
-  });
-
-  // Test 6: Update item quantity (happy path - increase)
-  test('should update item quantity correctly when increasing', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    const { result } = renderHook(() => useCart(), { wrapper });
-
-    act(() => {
-      result.current.updateQuantity('prod-1', 3);
-    });
-
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0].quantity).toBe(3);
-    expect(result.current.getTotalItems()).toBe(3);
-    expect(result.current.getTotalPrice()).toBe(300);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
-  });
-
-  // Test 7: Update item quantity (happy path - decrease)
-  test('should update item quantity correctly when decreasing', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 3 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    const { result } = renderHook(() => useCart(), { wrapper });
-
-    act(() => {
-      result.current.updateQuantity('prod-1', 1);
-    });
-
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems[0].quantity).toBe(1);
-    expect(result.current.getTotalItems()).toBe(1);
-    expect(result.current.getTotalPrice()).toBe(100);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
-  });
-
-  // Test 8: Update item quantity to zero (edge case - removes item)
-  test('should remove item if quantity is updated to zero or less', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    const { result } = renderHook(() => useCart(), { wrapper });
-
-    act(() => {
-      result.current.updateQuantity('prod-1', 0);
-    });
-
-    expect(result.current.cartItems.length).toBe(0);
-    expect(result.current.getTotalItems()).toBe(0);
-    expect(result.current.getTotalPrice()).toBe(0);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
-  });
-
-  // Test 9: Update quantity for non-existent item (edge case)
-  test('should do nothing if updating quantity for a non-existent item', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
-
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const initialCartLength = result.current.cartItems.length;
-    const initialTotalItems = result.current.getTotalItems();
-    const initialTotalPrice = result.current.getTotalPrice();
-
-    act(() => {
-      result.current.updateQuantity('non-existent-id', 5);
-    });
-
-    expect(result.current.cartItems.length).toBe(initialCartLength);
-    expect(result.current.cartItems[0].quantity).toBe(1); // Original item unchanged
-    expect(result.current.getTotalItems()).toBe(initialTotalItems);
-    expect(result.current.getTotalPrice()).toBe(initialTotalPrice);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1); // Only for initial load
-  });
-
-  // Test 10: Remove item from cart (happy path)
+  // Happy Path: Remove an item from the cart
   test('should remove an item from the cart', () => {
-    const initialCartData: CartItem[] = [
-      { id: 'prod-1', name: 'Product A', price: 100, quantity: 1 },
-      { id: 'prod-2', name: 'Product B', price: 50, quantity: 2 },
+    const product1: Product = { id: '1', name: 'Laptop', price: 1200 };
+    const product2: Product = { id: '2', name: 'Mouse', price: 25 };
+    const initialItems: CartItem[] = [
+      { ...product1, quantity: 1 },
+      { ...product2, quantity: 1 },
     ];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
+    mockLocalStorage.setItem('cart', JSON.stringify({ items: initialItems }));
 
-    const { result } = renderHook(() => useCart(), { wrapper });
+    render(
+      <CartProvider>
+        <TestComponent productId="1" />
+      </CartProvider>
+    );
 
-    act(() => {
-      result.current.removeItem('prod-1');
-    });
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
+    expect(screen.getByTestId('cart-item-2')).toBeInTheDocument();
 
-    expect(result.current.cartItems.length).toBe(1);
-    expect(result.current.cartItems.find(item => item.id === 'prod-1')).toBeUndefined();
-    expect(result.current.cartItems[0].id).toBe('prod-2');
-    expect(result.current.getTotalItems()).toBe(2);
-    expect(result.current.getTotalPrice()).toBe(100); // 50 * 2
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
+    // Remove the first item
+    fireEvent.click(screen.getByTestId('remove-item-1'));
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+    expect(screen.queryByTestId('cart-item-1')).toBeNull();
+    expect(screen.getByTestId('cart-item-2')).toBeInTheDocument();
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [{ ...product2, quantity: 1 }] }));
   });
 
-  // Test 11: Remove non-existent item (edge case)
-  test('should do nothing if removing a non-existent item', () => {
-    const initialCartData: CartItem[] = [{ id: 'prod-1', name: 'Product A', price: 100, quantity: 1 }];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
+  // Happy Path: Update quantity of an item
+  test('should update the quantity of an item', () => {
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    const initialItems: CartItem[] = [{ ...product, quantity: 1 }];
+    mockLocalStorage.setItem('cart', JSON.stringify({ items: initialItems }));
 
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const initialCartLength = result.current.cartItems.length;
-    const initialTotalItems = result.current.getTotalItems();
-    const initialTotalPrice = result.current.getTotalPrice();
+    render(
+      <CartProvider>
+        <TestComponent productId="1" quantityToUpdate={3} />
+      </CartProvider>
+    );
 
-    act(() => {
-      result.current.removeItem('non-existent-id');
-    });
+    expect(screen.getByTestId('cart-item-1')).toHaveTextContent('Laptop - Quantity: 1 - Price: 1200');
 
-    expect(result.current.cartItems.length).toBe(initialCartLength);
-    expect(result.current.cartItems[0].id).toBe('prod-1');
-    expect(result.current.getTotalItems()).toBe(initialTotalItems);
-    expect(result.current.getTotalPrice()).toBe(initialTotalPrice);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1); // Only for initial load
+    // Update quantity to 3
+    fireEvent.click(screen.getByTestId('update-quantity-1'));
+
+    expect(screen.getByTestId('cart-item-1')).toHaveTextContent('Laptop - Quantity: 3 - Price: 1200');
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [{ ...product, quantity: 3 }] }));
   });
 
-  // Test 12: Clear cart (happy path - with items)
+  // Edge Case: Update quantity to 0, should remove the item
+  test('should remove item if quantity is updated to 0', () => {
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    const initialItems: CartItem[] = [{ ...product, quantity: 1 }];
+    mockLocalStorage.setItem('cart', JSON.stringify({ items: initialItems }));
+
+    render(
+      <CartProvider>
+        <TestComponent productId="1" quantityToUpdate={0} />
+      </CartProvider>
+    );
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
+
+    // Update quantity to 0
+    fireEvent.click(screen.getByTestId('update-quantity-1'));
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+    expect(screen.queryByTestId('cart-item-1')).toBeNull();
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [] }));
+  });
+
+  // Edge Case: Load cart from localStorage
+  test('should load cart items from localStorage on mount', () => {
+    const product1: Product = { id: '1', name: 'Laptop', price: 1200 };
+    const product2: Product = { id: '2', name: 'Mouse', price: 25 };
+    const savedCartState = {
+      items: [
+        { ...product1, quantity: 2 },
+        { ...product2, quantity: 1 },
+      ],
+    };
+    mockLocalStorage.setItem('cart', JSON.stringify(savedCartState));
+
+    render(
+      <CartProvider>
+        <TestComponent />
+      </CartProvider>
+    );
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('cart-item-1')).toHaveTextContent('Laptop - Quantity: 2 - Price: 1200');
+    expect(screen.getByTestId('cart-item-2')).toHaveTextContent('Mouse - Quantity: 1 - Price: 25');
+    expect(mockLocalStorage.getItem).toHaveBeenCalledWith('cart');
+  });
+
+  // Error Handling: Corrupted localStorage
+  test('should handle corrupted localStorage data gracefully', () => {
+    // Simulate corrupted JSON in localStorage
+    mockLocalStorage.setItem('cart', 'invalid json');
+
+    // Spy on console.error to check if it's called
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <CartProvider>
+        <TestComponent />
+      </CartProvider>
+    );
+
+    // Should not throw an error and should start with an empty cart
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to load cart from localStorage:', expect.any(Error));
+
+    consoleSpy.mockRestore(); // Restore console.error
+  });
+
+  // Happy Path: Clear cart
   test('should clear all items from the cart', () => {
-    const initialCartData: CartItem[] = [
-      { id: 'prod-1', name: 'Product A', price: 100, quantity: 1 },
-      { id: 'prod-2', name: 'Product B', price: 50, quantity: 2 },
-    ];
-    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(initialCartData));
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    const initialItems: CartItem[] = [{ ...product, quantity: 1 }];
+    mockLocalStorage.setItem('cart', JSON.stringify({ items: initialItems }));
 
-    const { result } = renderHook(() => useCart(), { wrapper });
+    render(
+      <CartProvider>
+        <TestComponent />
+      </CartProvider>
+    );
 
-    act(() => {
-      result.current.clearCart();
-    });
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
 
-    expect(result.current.cartItems.length).toBe(0);
-    expect(result.current.getTotalItems()).toBe(0);
-    expect(result.current.getTotalPrice()).toBe(0);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2); // One for load, one for clear
+    // Clear the cart
+    fireEvent.click(screen.getByTestId('clear-cart-button'));
+
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+    expect(screen.queryByTestId('cart-item-1')).toBeNull();
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('cart', JSON.stringify({ items: [] }));
   });
 
-  // Test 13: Clear cart (happy path - empty cart)
-  test('should do nothing if clearing an already empty cart', () => {
-    const { result } = renderHook(() => useCart(), { wrapper });
-    const initialCartLength = result.current.cartItems.length;
-    const initialTotalItems = result.current.getTotalItems();
-    const initialTotalPrice = result.current.getTotalPrice();
-
-    act(() => {
-      result.current.clearCart();
-    });
-
-    expect(result.current.cartItems.length).toBe(initialCartLength);
-    expect(result.current.getTotalItems()).toBe(initialTotalItems);
-    expect(result.current.getTotalPrice()).toBe(initialTotalPrice);
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(0); // No change, so no setItem
-  });
-
-  // Test 14: localStorage save failure (error handling)
-  test('should handle localStorage save errors gracefully', () => {
-    const originalLocalStorageSetItem = mockLocalStorage.setItem;
-    mockLocalStorage.setItem.mockImplementation((key, value) => {
+  // Error Handling: localStorage save failure (e.g., quota exceeded)
+  test('should handle localStorage save errors', () => {
+    const product: Product = { id: '1', name: 'Laptop', price: 1200 };
+    mockLocalStorage.setItem.mockImplementation(() => {
       throw new Error('localStorage quota exceeded');
     });
-    // Suppress console.error for cleaner test output
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    const { result } = renderHook(() => useCart(), { wrapper });
+    render(
+      <CartProvider>
+        <TestComponent productToAdd={product} />
+      </CartProvider>
+    );
 
-    act(() => {
-      result.current.addToCart({ id: 'prod-1', name: 'Product A', price: 100 });
-    });
+    // Attempt to add an item, which should trigger save
+    fireEvent.click(screen.getByTestId('add-item-button'));
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save cart to localStorage:', expect.any(Error));
-    expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(1); // It attempts to set
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('1'); // State update should still work locally
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to save cart to localStorage:', expect.any(Error));
 
-    // Restore original function
-    mockLocalStorage.setItem.mockRestore();
-    consoleErrorSpy.mockRestore();
-  });
-
-  // Test 15: localStorage load failure (error handling)
-  test('should handle localStorage load errors gracefully', () => {
-    // Suppress console.error for cleaner test output
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockLocalStorage.getItem.mockImplementation((key) => {
-      throw new Error('localStorage access denied');
-    });
-
-    // Re-rendering to trigger useEffect that loads from storage
-    renderHook(() => useCart(), { wrapper });
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load cart from localStorage:', expect.any(Error));
-    expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
-
-    // Restore original function
-    mockLocalStorage.getItem.mockRestore();
-    consoleErrorSpy.mockRestore();
+    consoleSpy.mockRestore();
   });
 });
