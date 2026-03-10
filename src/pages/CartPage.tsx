@@ -1,30 +1,34 @@
-// src/pages/CartPage.tsx - Updated to use Product type correctly
+// src/pages/CartPage.tsx
 import React from 'react';
-import CartItem from '../components/CartItem';
-import CartSummary from '../components/CartSummary';
 import { useCart } from '../context/CartContext';
-import type { Product } from '../types/product'; // Import Product type
+import CartItemComponent from '../components/CartItem';
+import CartSummary from '../components/CartSummary';
 
 const CartPage: React.FC = () => {
-  const { cartItems, clearCart } = useCart();
+  const { items, updateQuantity, removeItem } = useCart();
 
   return (
-    <div className="cart-page">
+    <div className="cart-page" style={{ padding: '20px', maxWidth: '960px', margin: '0 auto' }}>
       <h1>Shopping Cart</h1>
-      {cartItems.length === 0 ? (
-        <p>Your cart is empty.</p>
+      {items.length === 0 ? (
+        <p>Your shopping cart is currently empty. Why not add some products?</p>
       ) : (
-        <>
-          <div className="cart-items-list">
-            {cartItems.map((item) => (
-              <CartItem key={item.product.id} item={item} />
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <div style={{ flex: 2 }}>
+            {items.map(item => (
+              <CartItemComponent
+                key={item.id}
+                item={item}
+                onUpdateQuantity={updateQuantity}
+                onRemove={removeItem}
+              />
             ))}
           </div>
-          <CartSummary />
-          <button onClick={clearCart} className="clear-cart-button">
-            Clear Cart
-          </button>
-        </>
+          <div style={{ flex: 1 }}>
+            <CartSummary items={items} />
+            {/* Add a "Proceed to Checkout" button or similar here */}
+          </div>
+        </div>
       )}
     </div>
   );

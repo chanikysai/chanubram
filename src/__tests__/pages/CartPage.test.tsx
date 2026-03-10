@@ -1,129 +1,156 @@
+// src/__tests__/pages/CartPage.test.tsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import CartPage from './CartPage';
-import { CartProvider, useCart } from '../context/CartContext'; // Assuming CartContext is in ../context/
+import { render, screen, fireEvent } from '@testing-library/react';
+import CartPage from '../../pages/CartPage';
+import { CartProvider, useCart, CartItem } from '../../context/CartContext';
+import { Product } from '../../types/product';
 
-// Mock the useCart hook and its return values
-jest.mock('../context/CartContext', () => ({
-  ...jest.requireActual('../context/CartContext'),
-  useCart: jest.fn(),
-}));
+// Mock custom hooks and components
+jest.mock('../../context/CartContext');
+jest.mock('../../components/CartItem');
+jest.mock('../../components/CartSummary');
 
+// Define mock functions and data
 const mockUseCart = useCart as jest.Mock;
-
-// Helper to render CartPage with CartProvider
-const renderWithProvider = (ui: React.ReactElement) => {
-  return render(<CartProvider>{ui}</CartProvider>);
-};
+const MockCartItemComponent = CartItemComponent as jest.Mock;
+const MockCartSummary = CartSummary as jest.Mock;
 
 describe('CartPage', () => {
+  const mockProduct1: Product = { id: '1', name: 'Laptop', price: 1200 };
+  const mockProduct2: Product = { id: '2', name: 'Mouse', price: 25 };
+
+  // Reset mocks before each test
   beforeEach(() => {
-    // Reset mocks before each test
-    mockUseCart.mockClear();
+    jest.clearAllMocks();
   });
 
-  // Test 1: Display message when cart is empty (happy path)
-  test('should display "Your cart is empty." message when cartItems is empty', () => {
-    mockUseCart.mockReturnValue({
-      cartItems: [],
-      getTotalItems: () => 0,
-      getTotalPrice: () => 0,
-      clearCart: jest.fn(),
-      addToCart: jest.fn(),
-      updateQuantity: jest.fn(),
-      removeItem: jest.fn(),
-    });
-
-    renderWithProvider(<CartPage />);
-
-    expect(screen.getByRole('heading', { name: 'Shopping Cart' })).toBeInTheDocument();
-    expect(screen.getByText('Your cart is empty.')).toBeInTheDocument();
-    expect(screen.queryByText('Cart Summary')).not.toBeInTheDocument();
-  });
-
-  // Test 2: Display cart items and summary when cart has items (happy path)
-  test('should display cart items and cart summary when cartItems is not empty', () => {
-    const mockCartItems = [
-      { id: 'prod-1', name: 'Product A', price: 100, quantity: 1 },
-      { id: 'prod-2', name: 'Product B', price: 50, quantity: 2 },
+  // Happy Path: Renders cart page with items
+  test('should render cart items and summary when cart is not empty', () => {
+    const mockCartItems: CartItem[] = [
+      { ...mockProduct1, quantity: 1 },
+      { ...mockProduct2, quantity: 2 },
     ];
-    const mockTotalItems = 3;
-    const mockTotalPrice = 200;
 
+    // Configure mock useCart hook
     mockUseCart.mockReturnValue({
-      cartItems: mockCartItems,
-      getTotalItems: () => mockTotalItems,
-      getTotalPrice: () => mockTotalPrice,
-      clearCart: jest.fn(),
-      addToCart: jest.fn(),
+      items: mockCartItems,
       updateQuantity: jest.fn(),
       removeItem: jest.fn(),
+      clearCart: jest.fn(), // Needed by context but not directly used by page in this render
     });
 
-    renderWithProvider(<CartPage />);
+    // Mock CartSummary to return a placeholder div for its content
+    MockCartSummary.mockReturnValue(
+      <div data-testid="mock-cart-summary">Mock Summary</div>
+    );
 
-    expect(screen.getByRole('heading', { name: 'Shopping Cart' })).toBeInTheDocument();
-    expect(screen.getByText('Product A')).toBeInTheDocument();
-    expect(screen.getByText('Price: $100.00')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument(); // Quantity for Product A
-    expect(screen.getByText('Product B')).toBeInTheDocument();
-    expect(screen.getByText('Price: $50.00')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument(); // Quantity for Product B
+    render(
+      <CartProvider> {/* CartProvider is still needed to wrap context usage */}
+        <CartPage />
+      </CartProvider>
+    );
 
-    expect(screen.getByText('Cart Summary')).toBeInTheDocument();
-    expect(screen.getByText(`Total Items: ${mockTotalItems}`)).toBeInTheDocument();
-    expect(screen.getByText(`Total Price: $${mockTotalPrice.toFixed(2)}`)).toBeInTheDocument();
+    expect(screen.getByText('Shopping Cart')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-cart-summary')).toBeInTheDocument();
+
+    // Check if CartItemComponent was rendered for each item
+    expect(MockCartItemComponent).toHaveBeenCalledTimes(mockCartItems.length);
+
+    // Verify props passed to CartItemComponent
+    expect(MockCartItemComponent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: mockCartItems[0],
+        onUpdateQuantity: expect.any(Function),
+        onRemove: expect.any(Function),
+      }),
+      {} // second argument to component (props)
+    );
+    expect(MockCartItemComponent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: mockCartItems[1],
+        onUpdateQuantity: expect.any(Function),
+        onRemove: expect.any(Function),
+      }),
+      {}
+    );
   });
 
-  // Test 3: Verify CartItem and CartSummary components are rendered correctly
-  // This test implicitly checks if CartItem and CartSummary are used by verifying their content.
-  // We can also explicitly check if the mock functions for CartItem and CartSummary were called if they were components we control.
-  // Since CartItem and CartSummary are imported, we are testing their rendering through CartPage.
-  // The previous test already covers their content rendering.
+  // Edge Case: Renders cart page with empty cart
+  test('should display a message when the cart is empty', () => {
+    const mockCartItems: CartItem[] = [];
 
-  // Test 4: Ensure quantity updates and removals work correctly by observing UI changes (edge case/interaction)
-  // This is better tested within CartItem and CartSummary tests, as CartPage is an orchestrator.
-  // However, we can mock the context functions and ensure they are called.
-  test('should allow interaction with cart items leading to context updates', () => {
+    mockUseCart.mockReturnValue({
+      items: mockCartItems,
+      updateQuantity: jest.fn(),
+      removeItem: jest.fn(),
+      clearCart: jest.fn(),
+    });
+
+    render(
+      <CartProvider>
+        <CartPage />
+      </CartProvider>
+    );
+
+    expect(screen.getByText('Shopping Cart')).toBeInTheDocument();
+    expect(screen.getByText('Your shopping cart is currently empty. Why not add some products?')).toBeInTheDocument();
+    expect(MockCartItemComponent).not.toHaveBeenCalled(); // Should not render any CartItemComponent
+    expect(MockCartSummary).not.toHaveBeenCalled(); // CartSummary should not be rendered if no items
+  });
+
+  // Happy Path: Interactions with CartItemComponent trigger context functions
+  test('should call context functions when CartItemComponent actions are triggered', () => {
+    const mockCartItems: CartItem[] = [{ ...mockProduct1, quantity: 1 }];
     const mockUpdateQuantity = jest.fn();
     const mockRemoveItem = jest.fn();
-    const mockCartItems = [
-      { id: 'prod-1', name: 'Product A', price: 100, quantity: 1 },
-    ];
 
     mockUseCart.mockReturnValue({
-      cartItems: mockCartItems,
-      getTotalItems: () => 1,
-      getTotalPrice: () => 100,
-      clearCart: jest.fn(),
-      addToCart: jest.fn(),
+      items: mockCartItems,
       updateQuantity: mockUpdateQuantity,
       removeItem: mockRemoveItem,
+      clearCart: jest.fn(),
     });
 
-    // Render the page - note that the actual CartItem component is rendered here, not a mock.
-    // We are testing that the CartPage passes down the correct item prop and that
-    // the mocked context functions are eventually called through interactions within CartItem.
-    // For a full integration test, we would render the actual CartItem and test its internal button clicks.
-    // Here, we're focusing on the page's structure and context interaction.
+    // Mock CartItemComponent to simulate its internal event handlers calling its props
+    MockCartItemComponent.mockImplementation(({ item, onUpdateQuantity, onRemove }) => (
+      <div>
+        {/* Simulate clicking "+" */}
+        <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}>Plus</button>
+        {/* Simulate clicking "-" */}
+        <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}>Minus</button>
+        {/* Simulate clicking "Remove" */}
+        <button onClick={() => onRemove(item.id)}>Remove</button>
+      </div>
+    ));
 
-    // This test setup is more for ensuring CartPage orchestrates correctly.
-    // The actual interaction testing happens in CartItem.test.tsx.
-    // To truly test the interaction from CartPage down, we would need to mock and find CartItem elements.
-    // For now, we'll assert that the context functions are available, and implicitly, if CartItem renders correctly,
-    // it will use them. We can't easily fire events on rendered CartItem components without more complex mocking.
+    render(
+      <CartProvider>
+        <CartPage />
+      </CartProvider>
+    );
 
-    // As a proxy, let's assert the page structure and that context was called.
-    renderWithProvider(<CartPage />);
+    // Find the buttons rendered by the mocked CartItemComponent
+    const plusButton = screen.getByText('Plus');
+    const minusButton = screen.getByText('Minus');
+    const removeButton = screen.getByText('Remove');
 
-    // Assert that the cart page structure is rendered correctly.
-    expect(screen.getByRole('heading', { name: 'Shopping Cart' })).toBeInTheDocument();
-    expect(screen.getByText('Product A')).toBeInTheDocument(); // From CartItem
-    expect(screen.getByText('Cart Summary')).toBeInTheDocument(); // From CartSummary
+    // Simulate clicking Plus
+    fireEvent.click(plusButton);
+    expect(mockUpdateQuantity).toHaveBeenCalledWith(mockProduct1.id, 2);
 
-    // We cannot directly test the fireEvent clicks on CartItem buttons from here easily without complex setup.
-    // These interaction tests are covered in CartItem.test.tsx.
-    // This test primarily confirms the page renders content when items are present.
-    expect(mockUseCart).toHaveBeenCalled(); // Ensure useCart was called
+    // Simulate clicking Minus
+    fireEvent.click(minusButton);
+    expect(mockUpdateQuantity).toHaveBeenCalledWith(mockProduct1.id, 0);
+
+    // Simulate clicking Remove
+    fireEvent.click(removeButton);
+    expect(mockRemoveItem).toHaveBeenCalledWith(mockProduct1.id);
   });
+
+  // Error Handling: Although CartPage doesn't directly handle errors from context,
+  // we ensure it renders correctly even if context returns empty state or errors
+  // (this is implicitly tested by the empty cart case, but we can add a note).
+  // If the context were to throw an error, the provider would catch it,
+  // or if the page itself had error boundaries, they would be tested here.
+  // For now, the empty state test covers graceful degradation.
 });

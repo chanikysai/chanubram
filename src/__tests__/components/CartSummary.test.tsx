@@ -1,67 +1,76 @@
+// src/__tests__/components/CartSummary.test.tsx
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import CartSummary from './CartSummary';
-import { useCart } from '../context/CartContext'; // Assuming CartContext is in ../context/
-
-// Mock the useCart hook
-jest.mock('../context/CartContext', () => ({
-  ...jest.requireActual('../context/CartContext'),
-  useCart: jest.fn(),
-}));
-
-const mockUseCart = useCart as jest.Mock;
+import CartSummary from '../../components/CartSummary';
+import { CartItem } from '../../context/CartContext';
 
 describe('CartSummary', () => {
-  // Test 1: Render summary with items in cart (happy path)
-  test('should display total items and total price when cart is not empty', () => {
-    const mockTotalItems = 5;
-    const mockTotalPrice = 125.75;
+  // Happy Path: Renders summary with multiple items
+  test('should render the correct total for multiple items', () => {
+    const mockItems: CartItem[] = [
+      { id: '1', name: 'Laptop', price: 1200, quantity: 1 },
+      { id: '2', name: 'Mouse', price: 25, quantity: 2 },
+      { id: '3', name: 'Keyboard', price: 75, quantity: 1 },
+    ];
+    render(<CartSummary items={mockItems} />);
 
-    mockUseCart.mockReturnValue({
-      getTotalItems: () => mockTotalItems,
-      getTotalPrice: () => mockTotalPrice,
-      clearCart: jest.fn(),
-    });
+    expect(screen.getByText('Order Summary')).toBeInTheDocument();
 
-    render(<CartSummary />);
+    // Check individual item subtotals
+    expect(screen.getByText('Laptop (1x)')).toBeInTheDocument();
+    expect(screen.getByText('$1200.00')).toBeInTheDocument(); // 1200 * 1
 
-    expect(screen.getByText('Cart Summary')).toBeInTheDocument();
-    expect(screen.getByText(`Total Items: ${mockTotalItems}`)).toBeInTheDocument();
-    expect(screen.getByText(`Total Price: $${mockTotalPrice.toFixed(2)}`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear Cart' })).toBeInTheDocument();
+    expect(screen.getByText('Mouse (2x)')).toBeInTheDocument();
+    expect(screen.getByText('$50.00')).toBeInTheDocument(); // 25 * 2
+
+    expect(screen.getByText('Keyboard (1x)')).toBeInTheDocument();
+    expect(screen.getByText('$75.00')).toBeInTheDocument(); // 75 * 1
+
+    // Check total
+    // Total = (1200*1) + (25*2) + (75*1) = 1200 + 50 + 75 = 1325
+    expect(screen.getByText('Total:')).toBeInTheDocument();
+    expect(screen.getByText('$1325.00')).toBeInTheDocument();
   });
 
-  // Test 2: Render summary when cart is empty (edge case)
-  test('should display zero items and zero price when cart is empty', () => {
-    mockUseCart.mockReturnValue({
-      getTotalItems: () => 0,
-      getTotalPrice: () => 0,
-      clearCart: jest.fn(),
-    });
+  // Edge Case: Renders summary with an empty cart
+  test('should display a message when the cart is empty', () => {
+    const mockItems: CartItem[] = [];
+    render(<CartSummary items={mockItems} />);
 
-    render(<CartSummary />);
-
-    expect(screen.getByText('Cart Summary')).toBeInTheDocument();
-    expect(screen.getByText('Total Items: 0')).toBeInTheDocument();
-    expect(screen.getByText('Total Price: $0.00')).toBeInTheDocument();
-    // The "Clear Cart" button should not be present if there are no items
-    expect(screen.queryByRole('button', { name: 'Clear Cart' })).not.toBeInTheDocument();
+    expect(screen.getByText('Order Summary')).toBeInTheDocument();
+    expect(screen.getByText('Your cart is empty.')).toBeInTheDocument();
+    expect(screen.queryByText('Total:')).toBeNull(); // Total should not be displayed if empty
   });
 
-  // Test 3: Call clearCart when the button is clicked (happy path)
-  test('should call clearCart when the "Clear Cart" button is clicked', () => {
-    const mockClearCart = jest.fn();
-    mockUseCart.mockReturnValue({
-      getTotalItems: () => 3,
-      getTotalPrice: () => 75.00,
-      clearCart: mockClearCart,
-    });
+  // Edge Case: Renders summary with a single item
+  test('should render the correct total for a single item', () => {
+    const mockItems: CartItem[] = [
+      { id: '1', name: 'Monitor', price: 300, quantity: 1 },
+    ];
+    render(<CartSummary items={mockItems} />);
 
-    render(<CartSummary />);
+    expect(screen.getByText('Order Summary')).toBeInTheDocument();
+    expect(screen.getByText('Monitor (1x)')).toBeInTheDocument();
+    expect(screen.getByText('$300.00')).toBeInTheDocument();
+    expect(screen.getByText('Total:')).toBeInTheDocument();
+    expect(screen.getByText('$300.00')).toBeInTheDocument();
+  });
 
-    const clearButton = screen.getByRole('button', { name: 'Clear Cart' });
-    fireEvent.click(clearButton);
+  // Edge Case: Item with zero price (though unlikely, good to test calculation)
+  test('should handle items with zero price correctly', () => {
+    const mockItems: CartItem[] = [
+      { id: '1', name: 'Freebie', price: 0, quantity: 5 },
+      { id: '2', name: 'Standard Item', price: 10, quantity: 1 },
+    ];
+    render(<CartSummary items={mockItems} />);
 
-    expect(mockClearCart).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Freebie (5x)')).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument(); // 0 * 5
+
+    expect(screen.getByText('Standard Item (1x)')).toBeInTheDocument();
+    expect(screen.getByText('$10.00')).toBeInTheDocument(); // 10 * 1
+
+    expect(screen.getByText('Total:')).toBeInTheDocument();
+    expect(screen.getByText('$10.00')).toBeInTheDocument(); // 0 + 10
   });
 });
