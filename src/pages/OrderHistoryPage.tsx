@@ -1,6 +1,6 @@
 // src/pages/OrderHistoryPage.tsx
 import React, { useState, useEffect } from 'react';
-import OrderItem from '../components/OrderItem';
+import OrderSummaryItem from '../components/OrderSummaryItem';
 import type { Order } from '../types/order';
 import { getOrderHistory } from '../services/orderApi';
 
@@ -46,7 +46,7 @@ const OrderHistoryPage: React.FC = () => {
       {!loading && !error && orders.length > 0 && (
         <div className="order-list">
           {orders.map(order => (
-            <OrderItem key={order.id} order={order} />
+            <OrderSummaryItem key={order.id} order={order} />
           ))}
         </div>
       )}

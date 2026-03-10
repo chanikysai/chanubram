@@ -1,4 +1,4 @@
-// src/components/OrderItem.tsx
+// src/components/OrderSummaryItem.tsx
 import React from 'react';
 import type { Order } from '../types/order';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ interface OrderItemProps {
   order: Order;
 }
 
-const OrderItem: React.FC<OrderItemProps> = ({ order }) => {
+const OrderSummaryItem: React.FC<OrderItemProps> = ({ order }) => {
   const formattedDate = new Date(order.date).toLocaleDateString();
 
   return (
@@ -30,15 +30,6 @@ const OrderItem: React.FC<OrderItemProps> = ({ order }) => {
   );
 };
 
-// Helper function to determine status color
-const getStatusColor = (status: Order['status']): string => {
-  switch (status) {
-    case 'Processing': return '#FFA500'; // Orange
-    case 'Shipped': return '#1E90FF'; // Dodger Blue
-    case 'Delivered': return '#32CD32'; // Lime Green
-    case 'Cancelled': return '#DC143C'; // Crimson
-    default: return '#808080'; // Grey
-  }
-};
+import { getStatusColor } from '../utils/orderUtils';
 
-export default OrderItem;
+export default OrderSummaryItem;
