@@ -54,7 +54,7 @@ describe('orderApi', () => {
     const orders = await getOrderHistory();
 
     // Advance timers to allow setTimeout to complete
-    jest.advanceTimersByTime(500);
+    jest.runAllTimers();
 
     expect(orders).toBeDefined();
     expect(orders.length).toBeGreaterThan(0);

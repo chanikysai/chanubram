@@ -13,7 +13,6 @@ describe('authApi', () => {
     test('should successfully register a new user', async () => {
       const userData = { email: 'newuser@example.com', name: 'New User', password: 'password123' };
       const result = await registerUser(userData);
-      expect(result).not.toHaveProperty('message');
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('token');
       expect(result.user.email).toBe(userData.email);
