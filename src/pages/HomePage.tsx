@@ -1,105 +1,44 @@
-// src/pages/HomePage.tsx
-import React, { useState, useEffect } from 'react';
-import ProductCard from '../components/ProductCard';
-import { fetchProducts, Product } from '../services/productApi';
-import { useNavigate } from 'react-router-dom'; // Assuming react-router-dom for navigation
+// src/pages/HomePage.tsx - Updated to use Product type correctly
+import React from 'react';
+import { Link } from 'react-router-dom';
+import ProductCard from '../components/ProductCard'; // Import ProductCard
+import type { Product } from '../types/product'; // Import Product type
+
+// Mock product data for demonstration
+const mockProducts: Record<string, Product> = {
+  'p1': { id: 'p1', name: 'Awesome Gadget', price: 49.99, description: 'A truly awesome gadget.' },
+  'p2': { id: 'p2', name: 'Super Widget', price: 19.50, description: 'A super widget for all your needs.' },
+  'p3': { id: 'p3', name: 'Mega Tool', price: 120.00, description: 'The ultimate tool for professionals.' },
+  'p4': { id: 'p4', name: 'Mini Gizmo', price: 15.75, description: 'A small, handy gizmo.' },
+};
 
 const HomePage: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const loadProducts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const fetchedProducts = await fetchProducts();
-        setProducts(fetchedProducts);
-        setFilteredProducts(fetchedProducts); // Initialize filtered products with all products
-      } catch (err: any) {
-        setError(err.message || 'Failed to load products.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadProducts();
-  }, []);
-
-  // Effect to update filtered products when searchTerm or selectedCategory changes
-  useEffect(() => {
-    let results = products;
-
-    // Filter by search term
-    if (searchTerm) {
-      results = results.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      results = results.filter(product => product.category === selectedCategory);
-    }
-
-    setFilteredProducts(results);
-  }, [searchTerm, selectedCategory, products]);
-
-  const handleProductClick = (product: Product) => {
-    navigate(`/products/${product.id}`); // Navigate to product detail page
-  };
-
-  const categories = ['all', ...Array.from(new Set(products.map(p => p.category)))];
+  const products = Object.values(mockProducts);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>Our Products</h1>
+    <div>
+      <h1>Welcome to Our Store</h1>
+      <p>Explore our products and add them to your cart!</p>
 
-      {/* Search and Filter Controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc', width: '300px', maxWidth: '80%' }}
-        />
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc', width: '200px', maxWidth: '80%' }}
-        >
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {category === 'all' ? 'All Categories' : category}
-            </option>
-          ))}
-        </select>
+      <div className="product-list" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', padding: '20px' }}>
+        {products.map(product => (
+          <ProductCard key={product.id} product={product} />
+        ))}
       </div>
 
-      {isLoading && <div style={{ textAlign: 'center', padding: '50px' }}>Loading products...</div>}
-      {error && <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>Error: {error}</div>}
-
-      {!isLoading && !error && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', justifyContent: 'center' }}>
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} onClick={handleProductClick} />
-            ))
-          ) : (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
-              No products found matching your search criteria.
-            </div>
-          )}
-        </div>
-      )}
+      <nav style={{ textAlign: 'center', marginTop: '20px' }}>
+        <ul>
+          <li>
+            <Link to="/cart">Go to Cart</Link>
+          </li>
+          {/* Example links to specific product pages */}
+          {products.map(product => (
+            <li key={product.id}>
+              <Link to={`/products/${product.id}`}>View {product.name}</Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 };

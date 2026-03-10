@@ -1,41 +1,45 @@
-// src/pages/ProductPage.tsx
-import React, { useState, useEffect } from 'react';
+// src/pages/ProductPage.tsx - Updated to use Product type correctly
+import React from 'react';
 import { useParams } from 'react-router-dom';
-import ProductDetail from '../components/ProductDetail';
-import { fetchProductById, Product } from '../services/productApi';
+import { useCart } from '../context/CartContext';
+import ProductDetail from '../components/ProductDetail'; // Import ProductDetail
+import type { Product } from '../types/product';
+
+const mockProducts: Record<string, Product> = {
+  'p1': { id: 'p1', name: 'Awesome Gadget', price: 49.99, description: 'A truly awesome gadget.' },
+  'p2': { id: 'p2', name: 'Super Widget', price: 19.50, description: 'A super widget for all your needs.' },
+  'p3': { id: 'p3', name: 'Mega Tool', price: 120.00, description: 'The ultimate tool for professionals.' },
+  'p4': { id: 'p4', name: 'Mini Gizmo', price: 15.75, description: 'A small, handy gizmo.' },
+};
 
 const ProductPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>(); // Get product ID from URL params
-  const [product, setProduct] = useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { productId } = useParams<{ productId: string }>();
+  const { addItem, cartItems } = useCart();
 
-  useEffect(() => {
-    const loadProduct = async () => {
-      if (!id) {
-        setError('Product ID is missing.');
-        setIsLoading(false);
-        return;
-      }
+  // Ensure productId is available before accessing mockProducts
+  const product = productId ? mockProducts[productId] : null;
 
-      setIsLoading(true);
-      setError(null);
-      try {
-        const fetchedProduct = await fetchProductById(id);
-        setProduct(fetchedProduct);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load product.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const handleAddToCart = () => {
+    if (product) {
+      addItem(product);
+    }
+  };
 
-    loadProduct();
-  }, [id]); // Re-run effect if ID changes
+  if (!product) {
+    return <div>Product not found.</div>;
+  }
+
+  const isItemInCart = cartItems.some(item => item.product.id === product.id);
+  const cartItem = cartItems.find(item => item.product.id === product.id);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <ProductDetail product={product} isLoading={isLoading} error={error} />
+    <div className="product-detail-page">
+      <ProductDetail product={product} /> {/* Render ProductDetail */}
+      {isItemInCart ? (
+        <p style={{ textAlign: 'center', marginTop: '10px' }}>In Cart: {cartItem?.quantity}</p>
+      ) : (
+        <button onClick={handleAddToCart} style={{ display: 'block', margin: '10px auto' }}>Add to Cart</button>
+      )}
     </div>
   );
 };

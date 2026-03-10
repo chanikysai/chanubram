@@ -1,45 +1,24 @@
 // src/services/productApi.ts
+// This file would typically contain functions for fetching product data from an API.
+// For this feature, we'll leave it as a placeholder.
 
-// Define the Product interface
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-  imageUrl: string;
-  category: string;
-  specifications?: Record<string, string>;
-}
+export const fetchProductById = async (id: string): Promise<any> => {
+  // Simulate API call
+  console.log(`Simulating API call to fetch product with ID: ${id}`);
+  // In a real application, you would fetch from your backend API here
+  // Example:
+  // const response = await fetch(`/api/products/${id}`);
+  // if (!response.ok) {
+  //   throw new Error('Failed to fetch product');
+  // }
+  // return response.json();
 
-const API_BASE_URL = '/api'; // Assuming a relative API path
-
-export const fetchProducts = async (): Promise<Product[]> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/products`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data: Product[] = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    throw error; // Re-throw to be handled by the caller
-  }
+  // Mock data for demonstration if needed for testing ProductPage directly
+  // This part might be better handled within ProductPage's tests or by a mock server
+  return null; // Placeholder
 };
 
-export const fetchProductById = async (id: string): Promise<Product> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/products/${id}`);
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Product with id ${id} not found.`);
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data: Product = await response.json();
-    return data;
-  } catch (error) {
-    console.error(`Error fetching product with id ${id}:`, error);
-    throw error; // Re-throw to be handled by the caller
-  }
+export const fetchAllProducts = async (): Promise<any[]> => {
+  console.log('Simulating API call to fetch all products');
+  return []; // Placeholder
 };
