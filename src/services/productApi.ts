@@ -2,46 +2,52 @@
 import { Product } from '../types/product';
 
 // Mock product data
-const mockProducts: Record<string, Product> = {
-  'p1': {
-    id: 'p1',
-    name: 'Example Gadget',
-    description: 'This is a wonderful gadget that does amazing things.',
-    price: 99.99,
-    imageUrl: '/path/to/gadget.jpg',
-  },
-  'p2': {
-    id: 'p2',
-    name: 'Another Item',
-    description: 'A different product with unique features.',
-    price: 49.50,
-    imageUrl: '/path/to/item.jpg',
-  },
-  'p3': {
-    id: 'p3',
-    name: 'Third Product',
-    description: 'This product is essential for your daily needs.',
+const mockProducts: Product[] = [
+  {
+    id: 'prod_1',
+    name: 'Stylish T-Shirt',
+    description: 'A comfortable and stylish t-shirt made from 100% cotton.',
     price: 25.00,
-    imageUrl: '/path/to/third.jpg',
+    imageUrl: '/images/product1.jpg',
   },
-};
+  {
+    id: 'prod_2',
+    name: 'Comfortable Jeans',
+    description: 'Durable and soft denim jeans for everyday wear.',
+    price: 50.00,
+    imageUrl: '/images/product2.jpg',
+  },
+  {
+    id: 'prod_3',
+    name: 'Classic Sneakers',
+    description: 'Timeless sneakers perfect for any casual outfit.',
+    price: 75.00,
+    imageUrl: '/images/product3.jpg',
+  },
+  {
+    id: 'prod_4',
+    name: 'Leather Wallet',
+    description: 'Genuine leather wallet with multiple card slots.',
+    price: 30.00,
+    imageUrl: '/images/product4.jpg',
+  },
+  {
+    id: 'prod_5',
+    name: 'Winter Jacket',
+    description: 'Warm and waterproof jacket for cold weather.',
+    price: 120.00,
+    imageUrl: '/images/product5.jpg',
+  },
+];
 
-// Helper to simulate network delay
-const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const getProductById = async (id: string): Promise<Product> => {
+  console.log(`Mock API: Fetching product with ID ${id}`);
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 300));
 
-/**
- * Fetches a single product by its ID.
- * @param productId The ID of the product to fetch.
- * @returns A promise that resolves to a Product object.
- * @throws Error if the product is not found.
- */
-export const getProductById = async (productId: string): Promise<Product> => {
-  await simulateDelay(50); // Simulate network latency
-  console.log(`API: Fetching product with ID \${productId}`);
-  const product = mockProducts[productId];
+  const product = mockProducts.find(p => p.id === id);
   if (!product) {
-    console.error(`API Error: Product with ID \${productId} not found.`);
-    throw new Error('Product not found');
+    throw new Error(`Product with ID ${id} not found.`);
   }
   return product;
 };

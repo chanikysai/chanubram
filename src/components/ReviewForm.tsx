@@ -1,12 +1,11 @@
 // src/components/ReviewForm.tsx
 import React, { useState } from 'react';
-import { submitReview } from '../services/reviewApi'; // Assuming reviewApi is correctly imported
 
 interface ReviewFormProps {
   productId: string;
   userId: string;
-  onSubmit: (review: { productId: string; userId: string; rating: number; comment: string }) => Promise<void>;
-  onError: (errorMessage: string | null) => void;
+  onSubmit: (reviewData: { productId: string; userId: string; rating: number; comment: string }) => Promise<void>;
+  onError: (error: string | null) => void;
 }
 
 const ReviewForm: React.FC<ReviewFormProps> = ({ productId, userId, onSubmit, onError }) => {
@@ -14,93 +13,76 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ productId, userId, onSubmit, on
   const [comment, setComment] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const handleRatingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRating(Number(event.target.value));
-    onError(null); // Clear error when user starts typing
-  };
-
-  const handleCommentChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setComment(event.target.value);
-    onError(null); // Clear error when user starts typing
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (rating === 0 || comment.trim().length === 0) {
-      onError('Please provide a rating and a comment.');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    onError(null); // Clear previous errors
+    if (rating === 0) {
+      onError('Please select a rating.');
       return;
     }
-
+    if (!comment.trim()) {
+      onError('Please enter a comment.');
+      return;
+    }
     setIsSubmitting(true);
-    onError(null); // Clear previous errors
-
     try {
       await onSubmit({ productId, userId, rating, comment });
-      // Optionally reset form after successful submission
-      setRating(0);
+      setRating(0); // Reset form
       setComment('');
-    } catch (error: any) {
-      onError(error.message || 'An unexpected error occurred while submitting the review.');
+    } catch (err) {
+      // Error is already set by the parent onError handler or API throw
+      console.error('Review submission failed:', err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Helper to render stars for rating selection
-  const renderStarSelector = () => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <label key={i}>
-          <input
-            type="radio"
-            name="rating"
-            value={i}
-            checked={rating === i}
-            onChange={handleRatingChange}
-            disabled={isSubmitting}
-            style={{ display: 'none' }} // Hide actual radio buttons
-          />
-          <span
-            style={{
-              cursor: 'pointer',
-              fontSize: '2em',
-              color: i <= rating ? 'gold' : 'grey',
-              margin: '0 2px',
-            }}
-          >
-            ★
-          </span>
-        </label>
-      );
-    }
-    return <div style={{ display: 'inline-block', verticalAlign: 'middle' }}>{stars}</div>;
-  };
-
-
   return (
-    <div className="review-form-container">
-      <h4>Leave a Review</h4>
+    <div className="review-form" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px', backgroundColor: '#f9f9f9' }}>
+      <h3>Leave a Review</h3>
       <form onSubmit={handleSubmit}>
-        <div className="form-group" style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: '15px' }}>
           <label htmlFor="rating">Rating: </label>
-          {renderStarSelector()}
+          <select
+            id="rating"
+            value={rating}
+            onChange={(e) => setRating(Number(e.target.value))}
+            disabled={isSubmitting}
+            style={{ marginLeft: '10px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value={0}>Select Rating</option>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <option key={star} value={star}>
+                {star} {star === 1 ? 'star' : 'stars'}
+              </option>
+            ))}
+          </select>
         </div>
-
-        <div className="form-group" style={{ marginBottom: '15px' }}>
-          <label htmlFor="comment">Your Review:</label>
+        <div style={{ marginBottom: '15px' }}>
+          <label htmlFor="comment">Comment: </label>
           <textarea
             id="comment"
             value={comment}
-            onChange={handleCommentChange}
+            onChange={(e) => setComment(e.target.value)}
             rows={4}
-            placeholder="Share your thoughts about this product..."
             disabled={isSubmitting}
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: '1px solid #ccc' }}
+            placeholder="Share your thoughts about this product..."
+            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', marginTop: '5px' }}
           />
         </div>
-
-        <button type="submit" disabled={isSubmitting || rating === 0 || comment.trim().length === 0}>
+        <button
+          type="submit"
+          disabled={isSubmitting || rating === 0 || !comment.trim()}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: isSubmitting || rating === 0 || !comment.trim() ? '#ccc' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isSubmitting || rating === 0 || !comment.trim() ? 'not-allowed' : 'pointer',
+            fontSize: '1em'
+          }}
+        >
           {isSubmitting ? 'Submitting...' : 'Submit Review'}
         </button>
       </form>

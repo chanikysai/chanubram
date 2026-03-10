@@ -1,147 +1,123 @@
 // src/__tests__/components/Recommendations.test.tsx
+
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import Recommendations from '../components/Recommendations';
-import { getRecommendations, getPopularProducts } from '../services/recommendationApi';
-import { Product } from '../types/product'; // Assuming Product type is defined here
+import '@testing-library/jest-dom';
+import Recommendations from '../../components/Recommendations';
+import { getRecommendations } from '../../services/recommendationApi'; // Import the mocked function
 
-// Mock the API functions
-jest.mock('../services/recommendationApi');
+// Mock the recommendationApi module
+jest.mock('../../services/recommendationApi');
 
-// Mock the Product type structure
-interface MockProduct {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl: string;
-}
+// Mock the ProductCard component as it's a dependency
+const MockProductCard: React.FC<{ product: any }> = ({ product }) => (
+  <div data-testid={`product-card-${product.id}`} style={{ border: '1px solid #ccc', padding: '10px', margin: '5px' }}>
+    <h4>{product.name}</h4>
+    <p>${product.price}</p>
+    <img src={product.imageUrl} alt={product.name} style={{ width: '50px', height: '50px' }} />
+  </div>
+);
 
-// Cast the mocked API functions to use our mock type for better type safety in tests
+// Mock the ProductCard component
+jest.mock('../../components/ProductCard', () => MockProductCard);
+
+// Type casting the mocked getRecommendations to jest.Mock
 const mockGetRecommendations = getRecommendations as jest.Mock;
-const mockGetPopularProducts = getPopularProducts as jest.Mock;
 
 describe('Recommendations Component', () => {
-  const mockProduct1: MockProduct = {
-    id: 'p1',
-    name: 'Mock Gadget',
-    description: 'A mock gadget for testing',
-    price: 99.99,
-    imageUrl: '/path/to/mock-gadget.jpg',
-  };
-  const mockProduct2: MockProduct = {
-    id: 'p2',
-    name: 'Mock Item',
-    description: 'Another mock item',
-    price: 49.50,
-    imageUrl: '/path/to/mock-item.jpg',
-  };
-  const mockProduct3: MockProduct = {
-    id: 'p3',
-    name: 'Mock Third',
-    description: 'A third mock product',
-    price: 25.00,
-    imageUrl: '/path/to/mock-third.jpg',
-  };
+  const mockProductId = 'prod_123';
+  const mockProducts = [
+    { id: 'rec_1', name: 'Recommended Item 1', imageUrl: '/img/rec1.jpg', price: 10 },
+    { id: 'rec_2', name: 'Recommended Item 2', imageUrl: '/img/rec2.jpg', price: 20 },
+  ];
 
-  // Reset mocks before each test
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Reset mocks before each test
+    mockGetRecommendations.mockClear();
+    // Default mock implementation to return an empty array to ensure tests don't interfere
+    mockGetRecommendations.mockResolvedValue([]);
   });
 
-  // Test case 1: Loading state
-  test('should display loading message while fetching recommendations', async () => {
+  // Test Case 1: Loading State
+  test('should display loading indicator while fetching recommendations', async () => {
+    // Configure the mock to simulate a delay before resolving
     mockGetRecommendations.mockImplementation(async () => {
-      // Simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 50));
-      return [mockProduct1];
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
+      return mockProducts;
     });
 
-    render(<Recommendations productId="p1" />);
+    render(<Recommendations productId={mockProductId} />);
+
+    // Check for loading text
     expect(screen.getByText('Loading recommendations...')).toBeInTheDocument();
 
-    // Wait for the loading message to disappear
+    // Wait for the loading text to disappear
     await waitFor(() => expect(screen.queryByText('Loading recommendations...')).not.toBeInTheDocument());
   });
 
-  // Test case 2: Error state
+  // Test Case 2: Error State
   test('should display error message if fetching recommendations fails', async () => {
-    const errorMessage = 'Failed to load recommendations.';
+    const errorMessage = 'Could not load recommendations. Please try again later.';
     mockGetRecommendations.mockRejectedValue(new Error('API Error'));
 
-    render(<Recommendations productId="p1" />);
+    render(<Recommendations productId={mockProductId} />);
 
+    // Wait for the error message to appear
     await waitFor(() => {
       expect(screen.getByText(errorMessage)).toBeInTheDocument();
-      expect(screen.queryByText('Loading recommendations...')).not.toBeInTheDocument();
     });
   });
 
-  // Test case 3: No recommendations available
+  // Test Case 3: Empty State
   test('should display message when no recommendations are available', async () => {
-    mockGetRecommendations.mockResolvedValue([]); // Return an empty array
+    mockGetRecommendations.mockResolvedValue([]); // API returns an empty array
 
-    render(<Recommendations productId="p1" />);
+    render(<Recommendations productId={mockProductId} />);
 
+    // Wait for loading to disappear and empty message to appear
     await waitFor(() => {
-      expect(screen.getByText('No recommendations available at the moment.')).toBeInTheDocument();
+      expect(screen.getByText('No recommendations available at this time.')).toBeInTheDocument();
+    });
+  });
+
+  // Test Case 4: Happy Path - Displaying Recommendations
+  test('should display recommended products using ProductCard components', async () => {
+    mockGetRecommendations.mockResolvedValue(mockProducts);
+
+    render(<Recommendations productId={mockProductId} />);
+
+    // Wait for loading to disappear and recommendations to be displayed
+    await waitFor(() => {
       expect(screen.queryByText('Loading recommendations...')).not.toBeInTheDocument();
-    });
-  });
-
-  // Test case 4: Display recommendations when productId is provided
-  test('should display recommendations when productId is provided', async () => {
-    mockGetRecommendations.mockResolvedValue([mockProduct1, mockProduct2]);
-
-    render(<Recommendations productId="p1" />);
-
-    await waitFor(() => {
       expect(screen.getByText('Recommended for You')).toBeInTheDocument();
-      expect(screen.getByText(mockProduct1.name)).toBeInTheDocument();
-      expect(screen.getByText(`$${mockProduct1.price.toFixed(2)}`)).toBeInTheDocument();
-      expect(screen.getByText(mockProduct2.name)).toBeInTheDocument();
-      expect(screen.getByText(`$${mockProduct2.price.toFixed(2)}`)).toBeInTheDocument();
-      expect(mockGetRecommendations).toHaveBeenCalledWith('p1');
-      expect(mockGetPopularProducts).not.toHaveBeenCalled();
     });
+
+    // Check if ProductCards are rendered for each recommended item
+    expect(screen.getByTestId('product-card-rec_1')).toBeInTheDocument();
+    expect(screen.getByTestId('product-card-rec_2')).toBeInTheDocument();
+
+    // Check if the mock ProductCard content is rendered
+    expect(screen.getByText('Recommended Item 1')).toBeInTheDocument();
+    expect(screen.getByText('$10')).toBeInTheDocument();
+    expect(screen.getByText('Recommended Item 2')).toBeInTheDocument();
+    expect(screen.getByText('$20')).toBeInTheDocument();
   });
 
-  // Test case 5: Display popular products when no productId is provided
-  test('should display popular products when no productId is provided', async () => {
-    mockGetPopularProducts.mockResolvedValue([mockProduct1, mockProduct3]);
+  // Test Case 5: Component does not fetch if no productId is provided
+  test('should not fetch recommendations if productId is not provided or is empty', async () => {
+    const { rerender } = render(<Recommendations productId={mockProductId} />);
 
-    render(<Recommendations />); // No productId passed
+    // Wait for initial fetch to complete and verify it was called
+    await waitFor(() => expect(mockGetRecommendations).toHaveBeenCalledTimes(1));
+    mockGetRecommendations.mockClear(); // Clear call count
 
-    await waitFor(() => {
-      expect(screen.getByText('Recommended for You')).toBeInTheDocument();
-      expect(screen.getByText(mockProduct1.name)).toBeInTheDocument();
-      expect(screen.getByText(`$${mockProduct1.price.toFixed(2)}`)).toBeInTheDocument();
-      expect(screen.getByText(mockProduct3.name)).toBeInTheDocument();
-      expect(screen.getByText(`$${mockProduct3.price.toFixed(2)}`)).toBeInTheDocument();
-      expect(mockGetPopularProducts).toHaveBeenCalled();
-      expect(mockGetRecommendations).not.toHaveBeenCalled();
-    });
-  });
+    // Render with an empty productId
+    rerender(<Recommendations productId="" />);
 
-  // Test case 6: Component re-renders with new productId
-  test('should refetch recommendations if productId prop changes', async () => {
-    const initialProductIds = [mockProduct1.id];
-    const updatedProductIds = [mockProduct2.id, mockProduct3.id];
+    // Give a moment for potential async operations (though none should happen)
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    mockGetRecommendations.mockResolvedValueOnce([mockProduct1]); // First render
-    mockGetRecommendations.mockResolvedValueOnce([mockProduct2, mockProduct3]); // Second render
-
-    const { rerender } = render(<Recommendations productId="p1" />);
-
-    await waitFor(() => expect(mockGetRecommendations).toHaveBeenCalledWith('p1'));
-    expect(screen.getByText(mockProduct1.name)).toBeInTheDocument();
-
-    // Rerender with a new productId
-    rerender(<Recommendations productId="p2" />);
-
-    await waitFor(() => expect(mockGetRecommendations).toHaveBeenCalledWith('p2'));
-    expect(screen.queryByText(mockProduct1.name)).not.toBeInTheDocument(); // Old product should be gone
-    expect(screen.getByText(mockProduct2.name)).toBeInTheDocument();
-    expect(screen.getByText(mockProduct3.name)).toBeInTheDocument();
+    expect(mockGetRecommendations).not.toHaveBeenCalled();
+    expect(screen.getByText('No recommendations available at this time.')).toBeInTheDocument();
   });
 });

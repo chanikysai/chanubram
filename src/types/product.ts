@@ -1,12 +1,9 @@
 // src/types/product.ts
 export interface Product {
-    id: string;
-    vendorId: string;
-    name: string;
-    description: string;
-    price: number;
-    inventory: number;
-    imageUrl: string; // URL for the product image
-    createdAt?: Date;
-    updatedAt?: Date;
+  id: string;
+  name: string;
+  description?: string; // Added description for ProductDetail
+  price: number;
+  imageUrl?: string; // Added imageUrl for ProductCard and ProductDetail
+  // Add other relevant product properties as needed
 }

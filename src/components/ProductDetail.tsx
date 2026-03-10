@@ -1,41 +1,40 @@
-// src/components/ProductDetail.tsx - Updated to use Product type correctly
+// src/components/ProductDetail.tsx
 import React from 'react';
-import { useCart } from '../context/CartContext'; // Import useCart
-import type { Product } from '../types/product';
+import { Product } from '../types/product'; // Assuming Product type is defined here
 
 interface ProductDetailProps {
   product: Product;
 }
 
 const ProductDetail: React.FC<ProductDetailProps> = ({ product }) => {
-  const { addItem } = useCart(); // Get addItem from context
-
-  const handleAddToCart = () => {
-    addItem(product); // Call addItem with the product object
-  };
-
   return (
-    <div className="product-detail" style={{ padding: '20px', border: '1px solid #eee', borderRadius: '8px', maxWidth: '400px', margin: '20px auto', backgroundColor: '#fff' }}>
-      <h2 style={{ marginBottom: '10px' }}>{product.name}</h2>
-      <p style={{ marginBottom: '15px', color: '#555' }}>{product.description || 'No description available.'}</p>
-      <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333', marginBottom: '20px' }}>Price: ${product.price.toFixed(2)}</p>
-      <button
-        onClick={handleAddToCart}
-        style={{
-          backgroundColor: '#28a745', // Green button
-          color: 'white',
-          border: 'none',
-          padding: '10px 20px',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          fontSize: '1em',
-          transition: 'background-color 0.3s ease'
-        }}
-        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#218838')} // Darker green on hover
-        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#28a745')}
-      >
-        Add to Cart
-      </button>
+    <div className="product-detail" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      {product.imageUrl && (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          style={{
+            width: '100%',
+            maxWidth: '400px', // Limit image width
+            height: 'auto',
+            maxHeight: '400px', // Limit image height
+            objectFit: 'contain',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            display: 'block', // Center the image
+            margin: '0 auto 20px auto',
+          }}
+        />
+      )}
+      <h2 style={{ fontSize: '2em', marginBottom: '15px', color: '#333' }}>{product.name}</h2>
+      <p style={{ fontSize: '1.1em', color: '#555', lineHeight: '1.6', marginBottom: '20px' }}>
+        {product.description || 'No description available for this product.'}
+      </p>
+      <p style={{ fontSize: '1.3em', color: '#007bff', fontWeight: 'bold' }}>
+        Price: ${product.price.toFixed(2)}
+      </p>
+      {/* Add other product details here if available, e.g., stock, brand, etc. */}
+      {/* Example: <p>Stock: {product.stock}</p> */}
     </div>
   );
 };

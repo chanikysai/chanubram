@@ -1,13 +1,17 @@
 // src/pages/ProductPage.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom'; // Assuming react-router-dom is used for navigation
-import { Review } from '../types/review'; // Adjust path as needed
-import { getReviews, submitReview, calculateAverageRating } from '../services/reviewApi'; // Adjust path as needed
-import ReviewForm from '../components/ReviewForm'; // Adjust path as needed
-import ReviewDisplay from '../components/ReviewDisplay'; // Adjust path as needed
-import { Product } from '../types/product'; // Assuming a Product type exists
-import { getProductById } from '../services/productApi'; // Assuming productApi.ts and Product type exist
+import { Review } from '../types/review'; // Import the Review type
+import { getReviews, submitReview, calculateAverageRating } from '../services/reviewApi'; // Import mock review API functions
+import ReviewForm from '../components/ReviewForm'; // Import the ReviewForm component
+import ReviewDisplay from '../components/ReviewDisplay'; // Import the ReviewDisplay component
+import { Product } from '../types/product'; // Import the Product type
+import { getProductById } from '../services/productApi'; // Import mock product API function
 import Recommendations from '../components/Recommendations'; // Import the Recommendations component
+import ProductDetail from '../components/ProductDetail'; // Import the ProductDetail component
+
+// Mock current user for demonstration purposes. In a real app, this would come from auth context.
+const currentUser = { id: 'u1', name: 'Alice' };
 
 const ProductPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>(); // Get productId from URL params
@@ -17,9 +21,6 @@ const ProductPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
-
-  // Assuming a current user ID is available, e.g., from context or auth service
-  const currentUser = { id: 'u1' }; // Mock user
 
   // Fetch product details and reviews on mount
   const loadProductData = useCallback(async (id: string) => {
@@ -31,11 +32,13 @@ const ProductPage: React.FC = () => {
       const fetchedProduct = await getProductById(id);
       setProduct(fetchedProduct);
 
+      // Fetch reviews for the product
       const fetchedReviews = await getReviews(id);
       setReviews(fetchedReviews);
       setAverageRating(calculateAverageRating(fetchedReviews));
     } catch (err: any) {
       setError(err.message || 'Failed to load product data.');
+      setProduct(null); // Clear product data on error
       setReviews([]);
       setAverageRating(0);
     } finally {
@@ -62,8 +65,8 @@ const ProductPage: React.FC = () => {
       setReviews(updatedReviews);
       setAverageRating(calculateAverageRating(updatedReviews));
     } catch (err: any) {
-      setReviewError(err.message || 'An unexpected error occurred.');
-      throw err; // Re-throw to be caught by ReviewForm's onError
+      setReviewError(err.message || 'An unexpected error occurred during review submission.');
+      throw err; // Re-throw to be caught by ReviewForm's error handling
     }
   };
 
@@ -72,7 +75,7 @@ const ProductPage: React.FC = () => {
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <div style={{ color: 'red' }}>Error: {error}</div>;
   }
 
   if (!product) {
@@ -81,35 +84,34 @@ const ProductPage: React.FC = () => {
   }
 
   return (
-    <div className="product-page">
-      <h1>{product.name}</h1>
-      {product.imageUrl && <img src={product.imageUrl} alt={product.name} style={{ maxWidth: '300px', marginBottom: '20px' }} />}
-      <p>{product.description}</p>
-      <p><strong>Price: ${product.price.toFixed(2)}</strong></p>
+    <div className="product-page" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      {/* Product Information Section - Replaced with ProductDetail component */}
+      <ProductDetail product={product} />
 
-      <hr />
+      <hr style={{ margin: '40px 0', border: '0', borderTop: '1px solid #eee' }} />
 
-      {/* Render Recommendations component here */}
+      {/* Recommendations Section */}
       <Recommendations productId={product.id} />
 
-      <hr />
+      <hr style={{ margin: '40px 0', border: '0', borderTop: '1px solid #eee' }} />
 
-      {currentUser?.id ? (
-        <ReviewForm
-          productId={product.id}
-          userId={currentUser.id}
-          onSubmit={handleReviewSubmit}
-          onError={setReviewError}
-        />
-      ) : (
-        <p>Please <a href="/login">log in</a> to leave a review.</p> // Placeholder for login link
-      )}
+      {/* Reviews Section */}
+      <div className="reviews-section" style={{ marginTop: '40px' }}>
+        {currentUser?.id ? (
+          <ReviewForm
+            productId={product.id}
+            userId={currentUser.id}
+            onSubmit={handleReviewSubmit}
+            onError={setReviewError}
+          />
+        ) : (
+          <p>Please <a href="/login" style={{ color: '#007bff', textDecoration: 'none' }}>log in</a> to leave a review.</p>
+        )}
 
-      {reviewError && <p className="error-message" style={{ color: 'red' }}>{reviewError}</p>}
+        {reviewError && <p className="error-message" style={{ color: 'red', marginTop: '15px' }}>{reviewError}</p>}
 
-      <hr />
-
-      <ReviewDisplay reviews={reviews} averageRating={averageRating} />
+        <ReviewDisplay reviews={reviews} averageRating={averageRating} />
+      </div>
     </div>
   );
 };

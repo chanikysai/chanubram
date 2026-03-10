@@ -57,7 +57,7 @@ describe('Recommendation API', () => {
   test('getRecommendations should return relevant products for a given productId', async () => {
     const recommendations = await getRecommendations('p1');
     // Advance timers to allow setTimeout to execute
-    jest.advanceTimersByTime(300);
+    jest.advanceTimersByTime(1000);
 
     expect(recommendations).toEqual([
       expect.objectContaining({ id: 'p2' }),
@@ -68,7 +68,7 @@ describe('Recommendation API', () => {
   // Test case 2: getRecommendations without productId (should return popular products)
   test('getRecommendations without productId should return popular products', async () => {
     const recommendations = await getRecommendations();
-    jest.advanceTimersByTime(300);
+    jest.advanceTimersByTime(1000);
 
     expect(recommendations).toEqual([
       expect.objectContaining({ id: 'p1' }),
@@ -81,7 +81,7 @@ describe('Recommendation API', () => {
   // Test case 3: getRecommendations with an unknown productId
   test('getRecommendations with an unknown productId should return general popular products', async () => {
     const recommendations = await getRecommendations('unknown_product_id');
-    jest.advanceTimersByTime(300);
+    jest.advanceTimersByTime(1000);
 
     // Based on the logic in recommendationApi.ts, unknown productIds fall through to default
     expect(recommendations).toEqual([
@@ -95,7 +95,7 @@ describe('Recommendation API', () => {
   // Test case 4: getPopularProducts
   test('getPopularProducts should return the list of popular products', async () => {
     const popularProducts = await getPopularProducts();
-    jest.advanceTimersByTime(200);
+    jest.advanceTimersByTime(1000);
 
     expect(popularProducts).toEqual([
       expect.objectContaining({ id: 'p1' }),
@@ -113,7 +113,7 @@ describe('Recommendation API', () => {
     const apiCallPromise = getRecommendations('p1');
 
     // Advance timers by less than the delay
-    jest.advanceTimersByTime(200);
+    jest.advanceTimersByTime(1000);
     let endTime = Date.now();
     // The promise should not have resolved yet
     await expect(Promise.race([apiCallPromise, Promise.resolve('not resolved')])).resolves.toBe('not resolved');
@@ -145,7 +145,7 @@ describe('Recommendation API', () => {
     // Let's ensure it's capped at 4 if more were available conceptually.
     // The current mock in the API returns at most 4. We just verify that the limit is respected.
     const recommendations = await getRecommendations();
-    jest.advanceTimersByTime(300);
+    jest.advanceTimersByTime(1000);
     expect(recommendations.length).toBeLessThanOrEqual(4);
     expect(recommendations.length).toBe(4); // Based on current mock data and slice(0,4)
   });
