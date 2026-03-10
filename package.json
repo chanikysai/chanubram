@@ -26,8 +26,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint "src/**/*.{ts,tsx}"",
-    "format": "prettier --write "src/**/*.{ts,tsx}""
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'src/**/*.{ts,tsx}'"
   },
   "eslintConfig": {
     "extends": [
@@ -52,10 +52,7 @@
       "^@/(.*)$": "<rootDir>/src/$1"
     },
     "transform": {
-      "^.+\.(ts|tsx)$": "ts-jest"
-    },
-    "setupFilesAfterEnv": [
-      "<rootDir>/src/setupTests.ts"
-    ]
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    }
   }
 }

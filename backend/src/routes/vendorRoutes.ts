@@ -1,83 +1,130 @@
 // backend/src/routes/vendorRoutes.ts
-import { Router } from 'express'; // Assuming Express.js for backend
-import { Vendor } from '../../services/vendorApi'; // Import Vendor type from frontend service definition
+import { Router } from 'express';
+import pool from '../db'; // Import the database connection pool
+import { VendorRegistrationData } from '../services/vendorApi'; // Import frontend data structure
+import { Vendor } from '../services/vendorApi'; // Import Vendor type for response
 
 const router = Router();
 
-// Placeholder for vendor registration endpoint
-router.post('/register', async (req, res) => {
-  // In a real backend:
-  // 1. Validate req.body against VendorRegistrationData schema.
-  // 2. Check if email already exists in DB.
-  // 3. Hash password (if applicable).
-  // 4. Create new vendor entry in DB with status 'pending'.
-  // 5. Return the created vendor object (excluding sensitive info like password hash).
-  // 6. Handle errors and send appropriate HTTP status codes.
+// Helper function for basic server-side validation
+const validateVendorData = (data: VendorRegistrationData): string | null => {
+  if (!data.businessName) return 'Business name is required.';
+  if (!data.email) return 'Email is required.';
+  if (!/\S+@\S+\.\S+/.test(data.email)) return 'Invalid email format.';
+  if (!data.phoneNumber) return 'Phone number is required.';
+  if (!/^\d{3}-\d{3}-\d{4}$/.test(data.phoneNumber)) return 'Invalid phone number format (e.g., 123-456-7890).';
+  if (!data.contactPerson) return 'Contact person is required.';
+  if (!data.address) return 'Address is required.';
+  if (!data.businessDescription) return 'Business description is required.';
+  return null; // No validation errors
+};
 
-  console.log('Received vendor registration request:', req.body);
-  // Simulate a delay or processing
-  setTimeout(() => {
-    const newVendor: Vendor = {
-      id: 'vendor-backend-123', // Generated UUID in a real DB
-      businessName: req.body.businessName,
-      email: req.body.email,
-      phoneNumber: req.body.phoneNumber,
-      contactPerson: req.body.contactPerson,
-      status: 'pending', // New vendors start as pending
-      createdAt: new Date().toISOString(),
-    };
-    // In a real scenario, this would be a 201 Created status
+// POST /api/vendors/register endpoint
+router.post('/register', async (req, res) => {
+  const vendorData: VendorRegistrationData = req.body;
+
+  const validationError = validateVendorData(vendorData);
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  try {
+    // Check if email already exists
+    const existingVendor = await pool.query('SELECT id FROM vendors WHERE email = $1', [vendorData.email]);
+    if (existingVendor.rows.length > 0) {
+      return res.status(409).json({ message: 'Email address already in use.' });
+    }
+
+    // Insert new vendor into the database
+    const queryText = `
+      INSERT INTO vendors (business_name, email, phone_number, contact_person, address, business_description, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, business_name, email, phone_number, contact_person, address, business_description, status, created_at
+    `;
+    const queryValues = [
+      vendorData.businessName,
+      vendorData.email,
+      vendorData.phoneNumber,
+      vendorData.contactPerson,
+      vendorData.address,
+      vendorData.businessDescription,
+      'pending', // New vendors start with 'pending' status
+    ];
+
+    const result = await pool.query(queryText, queryValues);
+    const newVendor: Vendor = result.rows[0];
+
     res.status(201).json(newVendor);
-  }, 500);
+
+  } catch (error: any) {
+    console.error('Error during vendor registration:', error);
+    // Handle database errors
+    if (error.code === '23505') { // Unique violation error code for email
+      return res.status(409).json({ message: 'Email address already in use.' });
+    }
+    res.status(500).json({ message: 'Failed to register vendor due to a server error.' });
+  }
 });
 
-// Placeholder for getting the current logged-in vendor
-router.get('/me', (req, res) => {
-  // In a real backend:
-  // 1. Check for authentication token (e.g., in Authorization header).
-  // 2. Fetch vendor details from DB based on authenticated user ID.
-  // 3. Return vendor details or 404 if not found.
+// GET /api/vendors/me endpoint
+router.get('/me', async (req, res) => {
   console.log('Received request for current vendor.');
-  // Simulate no vendor logged in for now
+  // In a real backend:
+  // 1. Authenticate user (e.g., via JWT token from Authorization header).
+  // 2. Extract user ID from token.
+  // 3. Query the database for the vendor with that ID.
+  // 4. Return vendor details or 404 if not found.
+
+  // For now, simulating no vendor logged in, as per previous implementation.
+  // If authentication was implemented, it might look like this:
+  /*
+  try {
+    // Assume authentication middleware populates req.user with { id: 'vendor-uuid' }
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized.' });
+    }
+    const vendorId = req.user.id;
+    const result = await pool.query('SELECT * FROM vendors WHERE id = $1', [vendorId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Vendor not found.' });
+    }
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error fetching current vendor:', error);
+    res.status(500).json({ message: 'Failed to fetch vendor data.' });
+  }
+  */
+
+  // Default: Simulate no vendor logged in
   res.status(404).json({ message: 'No vendor logged in.' });
 });
 
-// Placeholder for admin to approve a vendor
+
+// Admin functions - Stubs for now, as per previous step
 router.post('/admin/approve/:vendorId', (req, res) => {
   const { vendorId } = req.params;
   console.log(`Received request to approve vendor ${vendorId}`);
-  // In a real backend:
-  // 1. Authenticate user as admin.
-  // 2. Find vendor by ID.
-  // 3. Update vendor status to 'approved'.
-  // 4. Return updated vendor or success message.
   res.status(501).json({ message: 'Admin approve vendor endpoint not implemented.' });
 });
 
-// Placeholder for admin to reject a vendor
 router.post('/admin/reject/:vendorId', (req, res) => {
   const { vendorId } = req.params;
   const { reason } = req.body;
   console.log(`Received request to reject vendor ${vendorId} with reason: ${reason}`);
-  // In a real backend:
-  // 1. Authenticate user as admin.
-  // 2. Find vendor by ID.
-  // 3. Update vendor status to 'rejected' and store reason.
-  // 4. Return updated vendor or success message.
   res.status(501).json({ message: 'Admin reject vendor endpoint not implemented.' });
 });
 
-// Placeholder for vendor to update their application (e.g., if rejected)
-router.put('/vendors/:vendorId', (req, res) => {
+// Vendor update function - Stub for now
+router.put('/vendors/:vendorId', async (req, res) => {
   const { vendorId } = req.params;
-  console.log(`Received request to update vendor ${vendorId} application:`, req.body);
+  const updateData = req.body;
+  console.log(`Received request to update vendor ${vendorId} application:`, updateData);
   // In a real backend:
-  // 1. Authenticate user as the vendor or an admin.
+  // 1. Authenticate user (check if it's the vendor or an admin).
   // 2. Validate update data.
   // 3. Update vendor details in DB.
   // 4. Potentially reset status to 'pending' if vendor re-submits after rejection.
   res.status(501).json({ message: 'Vendor update application endpoint not implemented.' });
 });
-
 
 export default router;

@@ -8,6 +8,7 @@ Chanubram is a project aiming to build a platform for third-party sellers (vendo
   - Vendor registration form and initial dashboard setup.
   - Vendor application status tracking (pending, approved, rejected).
   - API services for vendor registration and status retrieval.
+  - **Implemented:** Frontend components, API service, backend API route for registration with database integration, updated database schema, and frontend routing. Obsolete components have been removed.
 
 ## Technologies
 - **Frontend:** React, TypeScript, React Router
@@ -25,13 +26,14 @@ Chanubram is a project aiming to build a platform for third-party sellers (vendo
   - `src/`: Backend source files.
     - `routes/`: API route definitions.
     - `app.ts`: Main Express application setup.
+    - `db.ts`: Database connection module.
   - `db/`: Database-related scripts.
     - `migrations/`: Database migration files.
 - `db/migrations/`: SQL scripts for database schema management.
 - `.gitignore`: Specifies intentionally untracked files that Git should ignore.
 - `package.json`: Project dependencies and scripts (frontend).
 - `tsconfig.json`: TypeScript compiler options for the frontend.
-- `.env*`: Environment variable files for frontend configuration.
+- `.env*`: Environment variable files for frontend and backend configuration.
 
 ## Setup and Running
 
@@ -43,19 +45,19 @@ Chanubram is a project aiming to build a platform for third-party sellers (vendo
 - **Backend Server:**
   - Navigate to the backend directory: `cd backend`
   - Install dependencies: `npm install` (or `yarn install`)
-  - Set environment variables: copy `backend/.env` to `.env.local` or configure system environment variables.
-  - Start the server: `npm run start` (assuming a start script is configured in `backend/package.json`, or `node src/app.ts`)
+  - Set environment variables: Ensure backend/.env is configured with DB credentials and port.
+  - Start the server: `node src/app.ts` (or `npm run start` if a script is defined)
 
 ### 2. Frontend
 - **Prerequisites:** Node.js, npm/yarn
 - **Frontend Development:**
   - Install dependencies: `npm install` (from the project root)
-  - Set environment variables: copy `.env.development` to `.env` for local development.
+  - Set environment variables: Ensure .env.development is configured (e.g., `REACT_APP_API_URL`).
   - Start the development server: `npm start`
 
 ## Running Tests
 - **Frontend:** `npm test` (from the project root)
-- **Backend:** (Conceptual, requires backend setup) `cd backend && npm test`
+- **Backend:** (Conceptual, requires backend setup) `cd backend && npm test` (requires setup for backend testing)
 
 ## Contributing
 Please refer to the project's contribution guidelines (if any).

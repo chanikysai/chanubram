@@ -1,7 +1,12 @@
 // backend/src/app.ts (example of integrating vendor routes)
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv'; // Import dotenv to load environment variables
 import vendorRoutes from './routes/vendorRoutes';
+import pool from './db'; // Import pool to ensure DB connection is checked on startup
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +24,19 @@ app.get('/health', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+// Use a graceful shutdown pattern for the pool
+const server = app.listen(PORT, () => {
   console.log(`Backend server is running on port ${PORT}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server and database pool');
+  server.close(() => {
+    console.log('HTTP server closed');
+    pool.end(() => {
+      console.log('Database pool closed');
+      process.exit(0);
+    });
+  });
 });

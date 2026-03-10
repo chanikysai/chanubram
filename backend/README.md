@@ -1,35 +1,62 @@
 # Backend Placeholder
 
-This directory contains placeholder files and structure for the backend of the Tripster application, focusing on vendor management.
+This directory contains placeholder files and structure for the backend of the Chanubram project, focusing on vendor management.
 
-## Technologies (Assumed)
+## Technologies
 - **Runtime:** Node.js
 - **Framework:** Express.js (for API routing)
-- **Database:** PostgreSQL (implied by SQL migration file)
+- **Database:** PostgreSQL
 
-## Structure
+## Project Structure
 - `src/`: Contains the core backend application code.
   - `routes/`: Defines API endpoints.
-    - `vendorRoutes.ts`: Placeholder for vendor-related API routes (registration, status checks, admin actions).
-  - `app.ts`: Example of how routes might be integrated into an Express application.
+    - `vendorRoutes.ts`: Implemented API routes for vendor registration, status checks.
+  - `app.ts`: Main Express application setup, including middleware and route mounting.
+  - `db.ts`: Database connection module using `pg` library.
 - `db/`: Contains database-related scripts.
   - `migrations/`: Holds database migration scripts.
-    - `001_create_vendors_table.sql`: Example SQL script to create the `vendors` table.
+    - `001_create_vendors_table.sql`: SQL script to create the `vendors` table with address and business description fields.
+- `package.json`: Backend dependencies and scripts.
+- `tsconfig.json`: TypeScript compiler options for the backend.
+- `.env*`: Environment variable files for backend configuration.
 
-## Setup and Running (Conceptual)
+## Setup and Running
 
 ### 1. Database Setup
 - Ensure PostgreSQL is installed and running.
-- Execute the migration script: `psql -U <your_user> -d <your_database> < db/migrations/001_create_vendors_table.sql`
+- Execute the migration script to create the `vendors` table:
+  ```bash
+  psql -U <your_user> -d <your_database> < db/migrations/001_create_vendors_table.sql
+  ```
+  Replace `<your_user>` and `<your_database>` with your PostgreSQL credentials.
 
 ### 2. Backend Server
-- Install Node.js and npm/yarn.
-- Install dependencies: `npm install` (or `yarn install`)
-- Start the server: `node dist/app.js` (assuming compiled TypeScript, or `ts-node src/app.ts` for direct TS execution).
+- **Install Dependencies:**
+  ```bash
+  cd backend
+  npm install
+  ```
+- **Environment Variables:**
+  - Copy `backend/.env` to `backend/.env.local` and configure your database connection details and port.
+  - For production, configure `backend/.env.production`.
+- **Start the Server:**
+  ```bash
+  cd backend
+  npm run dev # For development with nodemon
+  # or
+  npm start # For production (after 'npm run build')
+  ```
+
+## API Endpoints
+- `POST /api/vendors/register`: Registers a new vendor.
+- `GET /api/vendors/me`: Retrieves the current logged-in vendor's data (stubbed).
+- `POST /api/vendors/admin/approve/:vendorId`: Admin endpoint to approve a vendor (stubbed).
+- `POST /api/vendors/admin/reject/:vendorId`: Admin endpoint to reject a vendor (stubbed).
+- `PUT /api/vendors/:vendorId`: Vendor endpoint to update their application (stubbed).
 
 ## Next Steps
-- Implement actual API logic for vendor registration, status updates, and admin actions.
-- Develop comprehensive error handling and validation.
-- Set up authentication and authorization for API endpoints.
-- Integrate with a database ORM (e.g., Prisma, TypeORM) for database interactions.
-- Implement background jobs for notifications (e.g., email alerts for vendor status changes).
+- Implement authentication and authorization.
+- Develop admin interfaces for managing vendors.
+- Enhance error handling and logging.
+- Set up production-ready deployment configurations.
+- Write comprehensive backend tests.

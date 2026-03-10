@@ -1,69 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Assuming react-router-dom for navigation
-
-// Mocking react-router-dom for testing purposes
-jest.mock('react-router-dom', () => ({
-  useNavigate: jest.fn(),
-}));
+import React, { useState, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import VendorRegistrationForm from './VendorRegistrationForm'; // Import the new form component
+import { getCurrentVendor, registerVendor, Vendor, VendorRegistrationData, ApiError } from '../services/vendorApi'; // Import API functions and types
+import { act } from 'react'; // Import act for testing
 
 const VendorDashboardPage: React.FC = () => {
-  const [vendorName, setVendorName] = useState<string | null>(null);
+  const [vendor, setVendor] = useState<Vendor | null>(null); // Use a state to hold vendor data
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // State to hold error messages
   const navigate = useNavigate();
 
-  // In a real application, you would fetch the logged-in vendor's data here
-  // For this mock, we'll simulate fetching and set a placeholder name
+  // Fetch current vendor data on component mount
   useEffect(() => {
-    setIsLoading(true);
-    // Simulate fetching vendor data, e.g., from local storage or an API
-    // This might involve checking if a vendor token/ID exists.
     const fetchVendorData = async () => {
-      // Replace with actual logic to get vendor details
-      // e.g., const storedVendorId = localStorage.getItem('vendorId');
-      // if (storedVendorId) { const data = await fetchVendorById(storedVendorId); ... }
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-      
-      // Placeholder: Assume vendor is logged in and has a name
-      // In a real app, this would come from the API response.
-      const simulatedVendorName = 'Example Vendor Corp'; // Example name
-      setVendorName(simulatedVendorName);
-      setIsLoading(false);
+      setIsLoading(true);
+      setError(null); // Clear previous errors
+      try {
+        const fetchedVendor = await getCurrentVendor();
+        setVendor(fetchedVendor);
+      } catch (err: any) {
+        console.error('Error fetching vendor data:', err);
+        // Check if err is an ApiError with a message, otherwise use a default
+        const errorMessage = err.message || 'Failed to load vendor data. Please try again later.';
+        setError(errorMessage);
+        setVendor(null); // Ensure vendor is null on error
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchVendorData();
   }, []);
 
-  // If not logged in or vendor data not found, redirect to registration/login
-  useEffect(() => {
-    if (!isLoading && !vendorName) {
-      // If vendorName is null after loading, it means no vendor is logged in/found
-      // Redirect to the registration page or login page
-      navigate('/vendor/register'); // Assuming '/vendor/register' is the route for registration
+  // Handle vendor registration submission
+  const handleVendorRegistrationSubmit = async (formData: VendorRegistrationData) => {
+    setIsLoading(true); // Start loading for registration
+    setError(null); // Clear previous errors
+    try {
+      const registeredVendor = await registerVendor(formData);
+      setVendor(registeredVendor); // Set the newly registered vendor
+      // Optionally navigate to a "pending approval" page or show a success message
+      // For now, we'll just display the dashboard with pending status
+    } catch (err: any) {
+      console.error('Error registering vendor:', err);
+      // Check if err is an ApiError with a message, otherwise use a default
+      const errorMessage = err.message || 'Registration failed. Please check your details and try again.';
+      setError(errorMessage);
+      setVendor(null); // Ensure vendor remains null on registration error
+    } finally {
+      setIsLoading(false);
     }
-  }, [isLoading, vendorName, navigate]);
+  };
 
+  // Handle errors originating from the registration form's client-side validation
+  const handleFormError = (errorMessage: string) => {
+    setError(errorMessage);
+  };
+
+  // Render logic based on state
   if (isLoading) {
     return <div>Loading dashboard...</div>;
   }
 
-  if (!vendorName) {
-    // This case should ideally be handled by navigation, but as a fallback:
-    return <div>Redirecting to registration...</div>;
-  }
-
   return (
     <div>
-      <h1>Welcome to Your Vendor Dashboard, {vendorName}!</h1>
-      <p>This is your central hub for managing your store and products.</p>
-      
-      {/* Placeholder for navigation to different sections */}
-      <div>
-        <a href="/vendor/products">Manage Products</a> |{' '}
-        <a href="/vendor/orders">View Orders</a> |{' '}
-        <a href="/vendor/profile">Edit Profile</a>
-      </div>
-
-      {/* Future additions: overview of sales, notifications, etc. */}
+      {vendor ? (
+        // Vendor dashboard content
+        <>
+          <h1>Welcome to Your Vendor Dashboard, {vendor.businessName}!</h1>
+          <p>Your status: {vendor.status}</p> {/* Display status like pending/approved */}
+          <p>This is your central hub for managing your store and products.</p>
+          
+          <div>
+            {/* Use Link for better SPA navigation if available, otherwise use anchor tags */}
+            <a href="/vendor/products">Manage Products</a> |{' '}
+            <a href="/vendor/orders">View Orders</a> |{' '}
+            <a href="/vendor/profile">Edit Profile</a>
+          </div>
+          {/* Future additions: overview of sales, notifications, etc. */}
+        </>
+      ) : (
+        // Registration form if no vendor is found
+        <>
+          {error && <div className="error-message">{error}</div>} {/* Display general errors */}
+          <VendorRegistrationForm
+            onSubmit={handleVendorRegistrationSubmit}
+            onError={handleFormError}
+            isLoading={isLoading}
+          />
+        </>
+      )}
     </div>
   );
 };

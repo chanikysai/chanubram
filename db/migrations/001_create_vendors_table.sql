@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS vendors (
     email VARCHAR(255) UNIQUE NOT NULL,
     phone_number VARCHAR(50),
     contact_person VARCHAR(255),
+    address TEXT, -- Added address field
+    business_description TEXT, -- Added business_description field
     status VARCHAR(50) NOT NULL DEFAULT 'pending', -- e.g., 'pending', 'approved', 'rejected'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
