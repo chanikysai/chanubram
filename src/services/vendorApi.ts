@@ -1,113 +1,61 @@
-// Assuming a base URL for API calls
-const API_BASE_URL = '/api'; // Replace with your actual API base URL
+// src/services/vendorApi.ts
+import { Product } from '../types/product';
 
-// Import interfaces from the component file or a shared types file
-import { VendorRegistrationData } from '../components/VendorRegistrationForm';
+// Mock API functions for vendor-specific operations
+// In a real application, these would interact with a backend API.
+export const vendorApi = {
+    // Simulate fetching products for the logged-in vendor
+    getProducts: async (): Promise<Product[]> => {
+        console.log('vendorApi.getProducts called');
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Return dummy data
+        return [
+            { id: 'prod_1', vendorId: 'vendor_abc', name: 'Gourmet Coffee Beans', description: '1kg bag of premium Arabica beans.', price: 25.99, inventory: 150, imageUrl: 'https://via.placeholder.com/150/coffee.png' },
+            { id: 'prod_2', vendorId: 'vendor_abc', name: 'Artisan Ceramic Mug', description: 'Handcrafted ceramic mug with unique glaze.', price: 18.50, inventory: 75, imageUrl: 'https://via.placeholder.com/150/mug.png' },
+            { id: 'prod_3', vendorId: 'vendor_abc', name: 'Organic Green Tea', description: '25 tea bags of soothing organic green tea.', price: 12.00, inventory: 200, imageUrl: 'https://via.placeholder.com/150/tea.png' },
+        ];
+    },
 
-// Define the Vendor interface based on the database schema and expected API response
-export interface Vendor {
-  id: string;
-  businessName: string;
-  email: string;
-  phoneNumber: string;
-  contactPerson: string;
-  address: string; // From updated schema
-  businessDescription: string; // From updated schema
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-}
+    // Simulate creating a new product
+    createProduct: async (productData: Omit<Product, 'id' | 'vendorId'>): Promise<Product> => {
+        console.log('vendorApi.createProduct called with:', productData);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const newProduct: Product = {
+            id: `prod_\${Math.random().toString(36).substring(7)}`, // Generate a fake ID
+            vendorId: 'vendor_abc', // Assume logged-in vendor ID
+            ...productData,
+            // Ensure price and inventory are correctly typed
+            price: typeof productData.price === 'number' ? productData.price : parseFloat(productData.price as any),
+            inventory: typeof productData.inventory === 'number' ? productData.inventory : parseInt(productData.inventory as any, 10),
+            imageUrl: productData.imageUrl || 'https://via.placeholder.com/150/default.png', // Use placeholder if none provided
+        };
+        console.log('Created product:', newProduct);
+        return newProduct;
+    },
 
-// Interface for vendor application data that might be edited
-// This could be a subset or specific fields relevant for updates
-export interface VendorApplicationUpdateData {
-  businessName?: string;
-  email?: string;
-  phoneNumber?: string;
-  contactPerson?: string;
-  address?: string;
-  businessDescription?: string;
-}
+    // Simulate updating an existing product
+    updateProduct: async (productId: string, productData: Partial<Omit<Product, 'id' | 'vendorId'>>): Promise<Product> => {
+        console.log(`vendorApi.updateProduct called for \${productId} with:`, productData);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Simulate finding and updating the product
+        const updatedProduct: Product = {
+            id: productId,
+            vendorId: 'vendor_abc', // Assume vendorId remains the same
+            name: productData.name !== undefined ? productData.name : 'Old Name',
+            description: productData.description !== undefined ? productData.description : 'Old Description',
+            price: productData.price !== undefined ? parseFloat(productData.price as any) : 0,
+            inventory: productData.inventory !== undefined ? parseInt(productData.inventory as any, 10) : 0,
+            imageUrl: productData.imageUrl || 'https://via.placeholder.com/150/default.png',
+        };
+        console.log('Updated product:', updatedProduct);
+        return updatedProduct;
+    },
 
-// Interface for admin approval/rejection payloads
-export interface AdminVendorActionPayload {
-  vendorId: string;
-  reason?: string; // For rejection
-}
-
-export interface ApiError {
-  message: string;
-  statusCode?: number;
-}
-
-export const registerVendor = async (
-  vendorData: VendorRegistrationData
-): Promise<Vendor> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/vendors/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(vendorData),
-    });
-
-    if (!response.ok) {
-      let errorData: ApiError = { message: 'An unknown error occurred' };
-      try {
-        errorData = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse error response JSON:', jsonError);
-        errorData.message = 'Failed to register vendor due to an unknown server error.';
-      }
-      throw new Error(errorData.message);
-    }
-
-    const vendor: Vendor = await response.json();
-    return vendor;
-  } catch (error: any) {
-    console.error('Error in registerVendor API call:', error);
-    throw error;
-  }
-};
-
-export const getCurrentVendor = async (): Promise<Vendor | null> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/vendors/me`);
-    if (response.status === 404) {
-      return null;
-    }
-    if (!response.ok) {
-      const errorData: ApiError = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch current vendor');
-    }
-    const vendor: Vendor = await response.json();
-    return vendor;
-  } catch (error: any) {
-    console.error('Error fetching current vendor:', error);
-    throw error;
-  }
-};
-
-export const fetchVendorById = async (vendorId: string): Promise<Vendor> => {
-  console.warn('fetchVendorById is not fully implemented. This is a stub.');
-  throw new Error('fetchVendorById is not implemented.');
-};
-
-export const updateVendorApplication = async (
-  vendorId: string,
-  data: VendorApplicationUpdateData // Use the specific update interface
-): Promise<Vendor> => {
-  console.warn('updateVendorApplication is not fully implemented. This is a stub.');
-  throw new Error('updateVendorApplication is not implemented.');
-};
-
-// Admin functions
-export const approveVendor = async (vendorId: string): Promise<Vendor> => {
-  console.warn('approveVendor is not fully implemented. This is a stub.');
-  throw new Error('approveVendor is not implemented.');
-};
-
-export const rejectVendor = async (vendorId: string, reason: string): Promise<Vendor> => {
-  console.warn('rejectVendor is not fully implemented. This is a stub.');
-  throw new Error('rejectVendor is not implemented.');
+    // Simulate deleting a product
+    deleteProduct: async (productId: string): Promise<void> => {
+        console.log(`vendorApi.deleteProduct called for \${productId}`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`Product \${productId} simulated deletion.`);
+    },
 };
