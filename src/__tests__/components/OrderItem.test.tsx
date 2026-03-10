@@ -5,112 +5,148 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import OrderItem from '../../components/OrderItem';
 import type { Order } from '../../types/order';
 
-// Mock order data
-const mockOrder: Order = {
-  id: 'ord_123',
-  date: new Date(Date.UTC(2026, 2, 15, 11, 0, 0)).toISOString(), // March 15, 2026
-  totalAmount: 99.50,
-  status: 'Shipped',
-  items: [
-    { productId: 'p5', name: 'Test Item', quantity: 1, price: 99.50 },
-  ],
-  shippingAddress: '123 Test Rd, Testville',
-  paymentMethod: 'Test Card',
-};
+describe('OrderItem Component', () => {
+  const mockOrderDelivered: Order = {
+    id: 'ord_001',
+    date: new Date(Date.UTC(2026, 2, 1, 10, 30, 0)).toISOString(),
+    totalAmount: 89.99,
+    status: 'Delivered',
+    items: [], shippingAddress: '', paymentMethod: ''
+  };
 
-const mockDeliveredOrder: Order = {
-  ...mockOrder,
-  id: 'ord_456',
-  date: new Date(Date.UTC(2026, 2, 10, 10, 0, 0)).toISOString(),
-  status: 'Delivered',
-  totalAmount: 50.00,
-};
+  const mockOrderShipped: Order = {
+    id: 'ord_002',
+    date: new Date(Date.UTC(2026, 2, 5, 14, 0, 0)).toISOString(),
+    totalAmount: 120.00,
+    status: 'Shipped',
+    items: [], shippingAddress: '', paymentMethod: ''
+  };
 
-const mockProcessingOrder: Order = {
-  ...mockOrder,
-  id: 'ord_789',
-  date: new Date(Date.UTC(2026, 2, 12, 12, 0, 0)).toISOString(),
-  status: 'Processing',
-  totalAmount: 25.00,
-};
+  const mockOrderProcessing: Order = {
+    id: 'ord_003',
+    date: new Date(Date.UTC(2026, 2, 8, 9, 15, 0)).toISOString(),
+    totalAmount: 75.00,
+    status: 'Processing',
+    items: [], shippingAddress: '', paymentMethod: ''
+  };
 
-const mockCancelledOrder: Order = {
-  ...mockOrder,
-  id: 'ord_000',
-  date: new Date(Date.UTC(2026, 2, 13, 13, 0, 0)).toISOString(),
-  status: 'Cancelled',
-  totalAmount: 10.00,
-};
+  const mockOrderCancelled: Order = {
+    id: 'ord_004',
+    date: new Date(Date.UTC(2026, 2, 9, 11, 0, 0)).toISOString(),
+    totalAmount: 50.00,
+    status: 'Cancelled',
+    items: [], shippingAddress: '', paymentMethod: ''
+  };
 
-describe('OrderItem', () => {
-  // Test Case 1: Render basic order details correctly
+  const formattedDateDelivered = new Date(mockOrderDelivered.date).toLocaleDateString();
+  const formattedDateShipped = new Date(mockOrderShipped.date).toLocaleDateString();
+
+  // Test Case 1: Render basic order details
   test('should render order ID, date, and total amount correctly', () => {
-    render(<OrderItem order={mockOrder} />);
+    render(
+      <MemoryRouter>
+        <OrderItem order={mockOrderDelivered} />
+      </MemoryRouter>
+    );
 
-    const formattedDate = new Date(mockOrder.date).toLocaleDateString();
-
-    expect(screen.getByText(`#${mockOrder.id}`)).toBeInTheDocument();
-    expect(screen.getByText(`Date: ${formattedDate}`)).toBeInTheDocument();
-    expect(screen.getByText(`Total Amount: $${mockOrder.totalAmount.toFixed(2)}`)).toBeInTheDocument();
+    expect(screen.getByText(`#${mockOrderDelivered.id}`)).toBeInTheDocument();
+    expect(screen.getByText(`Date: ${formattedDateDelivered}`)).toBeInTheDocument();
+    expect(screen.getByText(`Total Amount: $${mockOrderDelivered.totalAmount.toFixed(2)}`)).toBeInTheDocument();
   });
 
-  // Test Case 2: Render status and check its color
-  test('should render the correct status and apply appropriate color styling', () => {
-    const { rerender } = render(
+  // Test Case 2: Render correct status and color for 'Delivered'
+  test('should display "Delivered" status with green color', () => {
+    render(
       <MemoryRouter>
-        <OrderItem order={mockOrder} />
+        <OrderItem order={mockOrderDelivered} />
       </MemoryRouter>
     );
 
-    // Check for 'Shipped' status
-    const shippedStatusElement = screen.getByText('Status: Shipped');
-    expect(shippedStatusElement).toBeInTheDocument();
-    expect(shippedStatusElement.parentElement).toHaveStyle('color: #1E90FF'); // Dodger Blue for Shipped
-
-    // Rerender with a different status
-    rerender(
-      <MemoryRouter>
-        <OrderItem order={mockDeliveredOrder} />
-      </MemoryRouter>
-    );
-    const deliveredStatusElement = screen.getByText('Status: Delivered');
-    expect(deliveredStatusElement).toBeInTheDocument();
-    expect(deliveredStatusElement.parentElement).toHaveStyle('color: #32CD32'); // Lime Green for Delivered
-
-    // Rerender with another status
-    rerender(
-      <MemoryRouter>
-        <OrderItem order={mockProcessingOrder} />
-      </MemoryRouter>
-    );
-    const processingStatusElement = screen.getByText('Status: Processing');
-    expect(processingStatusElement).toBeInTheDocument();
-    expect(processingStatusElement.parentElement).toHaveStyle('color: #FFA500'); // Orange for Processing
-
-    // Rerender with cancelled status
-    rerender(
-      <MemoryRouter>
-        <OrderItem order={mockCancelledOrder} />
-      </MemoryRouter>
-    );
-    const cancelledStatusElement = screen.getByText('Status: Cancelled');
-    expect(cancelledStatusElement).toBeInTheDocument();
-    expect(cancelledStatusElement.parentElement).toHaveStyle('color: #DC143C'); // Crimson for Cancelled
+    const statusElement = screen.getByText(`Status: ${mockOrderDelivered.status}`);
+    expect(statusElement).toBeInTheDocument();
+    // Check the color of the status span
+    expect(statusElement.nextElementSibling).toHaveStyle('color: rgb(50, 205, 50)'); // Lime Green
   });
 
-  // Test Case 3: Ensure the "View Details" link navigates correctly
+  // Test Case 3: Render correct status and color for 'Shipped'
+  test('should display "Shipped" status with blue color', () => {
+    render(
+      <MemoryRouter>
+        <OrderItem order={mockOrderShipped} />
+      </MemoryRouter>
+    );
+
+    const statusElement = screen.getByText(`Status: ${mockOrderShipped.status}`);
+    expect(statusElement).toBeInTheDocument();
+    expect(statusElement.nextElementSibling).toHaveStyle('color: rgb(30, 144, 255)'); // Dodger Blue
+  });
+
+  // Test Case 4: Render correct status and color for 'Processing'
+  test('should display "Processing" status with orange color', () => {
+    render(
+      <MemoryRouter>
+        <OrderItem order={mockOrderProcessing} />
+      </MemoryRouter>
+    );
+
+    const statusElement = screen.getByText(`Status: ${mockOrderProcessing.status}`);
+    expect(statusElement).toBeInTheDocument();
+    expect(statusElement.nextElementSibling).toHaveStyle('color: rgb(255, 165, 0)'); // Orange
+  });
+
+  // Test Case 5: Render correct status and color for 'Cancelled'
+  test('should display "Cancelled" status with red color', () => {
+    render(
+      <MemoryRouter>
+        <OrderItem order={mockOrderCancelled} />
+      </MemoryRouter>
+    );
+
+    const statusElement = screen.getByText(`Status: ${mockOrderCancelled.status}`);
+    expect(statusElement).toBeInTheDocument();
+    expect(statusElement.nextElementSibling).toHaveStyle('color: rgb(220, 20, 60)'); // Crimson
+  });
+
+  // Test Case 6: Ensure "View Details" link navigates correctly
   test('should link to the correct order detail page', () => {
     render(
       <MemoryRouter initialEntries={['/orders']}>
         <Routes>
-          <Route path="/orders" element={<OrderItem order={mockOrder} />} />
-          <Route path="/orders/:orderId" element={<div>Order Detail Page</div>} />
+          <Route path="/orders" element={<OrderItem order={mockOrderDelivered} />} />
+          <Route path="/orders/:orderId" element={<div>Order Detail Page Content</div>} />
         </Routes>
       </MemoryRouter>
     );
 
-    const linkElement = screen.getByText('View Details');
-    expect(linkElement).toBeInTheDocument();
-    expect(linkElement).toHaveAttribute('href', `/orders/${mockOrder.id}`);
+    const viewDetailsLink = screen.getByText('View Details');
+    expect(viewDetailsLink).toBeInTheDocument();
+    expect(viewDetailsLink).toHaveAttribute('href', `/orders/${mockOrderDelivered.id}`);
+  });
+
+  // Test Case 7: Check rendering with minimal data (if applicable, though types enforce structure)
+  // This test ensures the component handles data structure as expected.
+  test('should render with minimal required order data', () => {
+    const minimalOrder: Order = {
+      id: 'ord_min',
+      date: new Date(Date.UTC(2026, 2, 15, 12, 0, 0)).toISOString(),
+      totalAmount: 10.00,
+      status: 'Processing',
+      items: [],
+      shippingAddress: 'Minimal Address',
+      paymentMethod: 'Minimal Method',
+    };
+    const formattedMinimalDate = new Date(minimalOrder.date).toLocaleDateString();
+
+    render(
+      <MemoryRouter>
+        <OrderItem order={minimalOrder} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(`#${minimalOrder.id}`)).toBeInTheDocument();
+    expect(screen.getByText(`Date: ${formattedMinimalDate}`)).toBeInTheDocument();
+    expect(screen.getByText(`Total Amount: $${minimalOrder.totalAmount.toFixed(2)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Status: ${minimalOrder.status}`)).toBeInTheDocument();
+    expect(screen.getByText('View Details')).toBeInTheDocument();
   });
 });
