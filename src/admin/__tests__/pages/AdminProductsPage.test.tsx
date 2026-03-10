@@ -2,276 +2,261 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AdminProductsPage from '../pages/AdminProductsPage';
-import * as adminProductApi from '../services/adminProductApi';
+import * as adminProductApi from '../../services/adminProductApi';
+import { Product } from '../../types/product';
 
-// Mocking the API calls
-jest.mock('../services/adminProductApi');
+// Mock the API calls
+jest.mock('../../services/adminProductApi');
+const mockAdminProductApi = adminProductApi as jest.Mocked<typeof adminProductApi>;
 
-const mockProducts = [
-    { id: '1', name: 'Laptop', description: 'High performance laptop', price: 1200.00, stock: 10 },
-    { id: '2', name: 'Keyboard', description: 'Mechanical keyboard', price: 75.50, stock: 50 },
+// Mock data
+const mockProducts: Product[] = [
+  { id: 'prod-1', name: 'Laptop', description: 'High performance laptop', price: 1200, stock: 50 },
+  { id: 'prod-2', name: 'Keyboard', description: 'Mechanical keyboard', price: 75, stock: 120 },
 ];
 
-const mockNewProduct = {
-    id: '3',
-    name: 'New Product',
-    description: 'A new product for testing',
-    price: 100.00,
-    stock: 25,
-};
-
-const mockUpdatedProduct = {
-    id: '1',
-    name: 'Updated Laptop',
-    description: 'Updated high performance laptop',
-    price: 1150.00,
-    stock: 8,
-};
-
-const mockApi = adminProductApi as jest.Mocked<typeof adminProductApi>;
-
 describe('AdminProductsPage', () => {
-    beforeEach(() => {
-        // Reset mocks before each test
-        jest.clearAllMocks();
+  beforeEach(() => {
+    // Reset mocks before each test
+    mockAdminProductApi.getProducts.mockClear();
+    mockAdminProductApi.createProduct.mockClear();
+    mockAdminProductApi.updateProduct.mockClear();
+    mockAdminProductApi.deleteProduct.mockClear();
 
-        // Mocking default implementations for API calls
-        mockApi.getProducts.mockResolvedValue(mockProducts);
-        mockApi.addProduct.mockResolvedValue(mockNewProduct);
-        mockApi.editProduct.mockResolvedValue(mockUpdatedProduct);
-        mockApi.deleteProduct.mockResolvedValue(undefined);
+    // Default successful mock for getProducts
+    mockAdminProductApi.getProducts.mockResolvedValue(mockProducts);
+
+    // Mock window.confirm for delete operations
+    jest.spyOn(window, 'confirm').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    // Restore mocks
+    jest.restoreAllMocks();
+  });
+
+  // Happy Path: Page loads and displays products
+  test('should fetch and display products on page load', async () => {
+    render(<AdminProductsPage />);
+
+    expect(mockAdminProductApi.getProducts).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/loading.../i)).toBeInTheDocument(); // Initial loading state
+
+    // Wait for products to be displayed
+    await waitFor(() => {
+      expect(screen.queryByText(/loading.../i)).not.toBeInTheDocument();
+      expect(screen.getByText('Laptop')).toBeInTheDocument();
+      expect(screen.getByText('Keyboard')).toBeInTheDocument();
+      expect(screen.getByText('Product Management')).toBeInTheDocument();
+    });
+  });
+
+  // Happy Path: Add a new product
+  test('should allow adding a new product', async () => {
+    mockAdminProductApi.createProduct.mockResolvedValue({ id: 'prod-3', name: 'Monitor', description: '27 inch 4K monitor', price: 300, stock: 25 });
+
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument()); // Ensure products are loaded
+
+    // Click "Add New Product" button
+    const addButton = screen.getByRole('button', { name: /add new product/i });
+    fireEvent.click(addButton);
+
+    // Fill out the form
+    const productNameInput = screen.getByLabelText(/product name/i);
+    const descriptionInput = screen.getByLabelText(/description/i);
+    const priceInput = screen.getByLabelText(/price/i);
+    const stockInput = screen.getByLabelText(/stock quantity/i);
+    const submitButton = screen.getByRole('button', { name: /add product/i });
+
+    fireEvent.change(productNameInput, { target: { value: 'Monitor' } });
+    fireEvent.change(descriptionInput, { target: { value: '27 inch 4K monitor' } });
+    fireEvent.change(priceInput, { target: { value: '300' } });
+    fireEvent.change(stockInput, { target: { value: '25' } });
+
+    // Submit the form
+    fireEvent.click(submitButton);
+
+    // Verify API call and refresh
+    await waitFor(() => {
+      expect(mockAdminProductApi.createProduct).toHaveBeenCalledTimes(1);
+      expect(mockAdminProductApi.createProduct).toHaveBeenCalledWith({
+        name: 'Monitor',
+        description: '27 inch 4K monitor',
+        price: 300,
+        stock: 25,
+      });
+      // expect(screen.getByText('Product added successfully!')).toBeInTheDocument(); // Alert is used, so this won't be visible directly
     });
 
-    // Happy Path Test Case 1: Page renders and fetches products
-    it('should render product management page and fetch products on mount', async () => {
-        render(<AdminProductsPage />);
+    // Wait for the list to refresh and show the new product
+    await waitFor(() => {
+      expect(mockAdminProductApi.getProducts).toHaveBeenCalledTimes(2); // Called once on load, once after creation
+      expect(screen.getByText('Monitor')).toBeInTheDocument();
+    });
+  });
 
-        expect(screen.getByText('Product Management')).toBeInTheDocument();
-        expect(screen.getByText('Loading products...')).toBeInTheDocument();
+  // Happy Path: Edit an existing product
+  test('should allow editing an existing product', async () => {
+    mockAdminProductApi.updateProduct.mockResolvedValue({ id: 'prod-1', name: 'Gaming Laptop', description: 'High performance gaming laptop', price: 1500, stock: 45 });
 
-        // Wait for the products to be loaded and displayed
-        await waitFor(() => {
-            expect(mockApi.getProducts).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('Laptop')).toBeInTheDocument();
-            expect(screen.getByText('Keyboard')).toBeInTheDocument();
-            expect(screen.queryByText('Loading products...')).not.toBeInTheDocument();
-        });
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument()); // Ensure products are loaded
+
+    // Click Edit for the first product
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    fireEvent.click(editButtons[0]);
+
+    // Verify form is pre-filled
+    expect(screen.getByLabelText(/product name/i)).toHaveValue('Laptop');
+
+    // Change values
+    const productNameInput = screen.getByLabelText(/product name/i);
+    const priceInput = screen.getByLabelText(/price/i);
+    const submitButton = screen.getByRole('button', { name: /update product/i });
+
+    fireEvent.change(productNameInput, { target: { value: 'Gaming Laptop' } });
+    fireEvent.change(priceInput, { target: { value: '1500' } });
+
+    // Submit the form
+    fireEvent.click(submitButton);
+
+    // Verify API call and refresh
+    await waitFor(() => {
+      expect(mockAdminProductApi.updateProduct).toHaveBeenCalledTimes(1);
+      expect(mockAdminProductApi.updateProduct).toHaveBeenCalledWith('prod-1', {
+        name: 'Gaming Laptop',
+        price: 1500,
+        description: 'High performance laptop', // Other fields remain unchanged unless explicitly changed
+        stock: 50,
+      });
     });
 
-    // Happy Path Test Case 2: Clicking "Add New Product" shows the form
-    it('should display the product form when "Add New Product" button is clicked', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+    // Wait for the list to refresh and show the updated product
+    await waitFor(() => {
+      expect(mockAdminProductApi.getProducts).toHaveBeenCalledTimes(2); // Called once on load, once after update
+      expect(screen.getByText('Gaming Laptop')).toBeInTheDocument();
+      expect(screen.getByText('$1500.00')).toBeInTheDocument();
+    });
+  });
 
-        const addButton = screen.getByRole('button', { name: 'Add New Product' });
-        fireEvent.click(addButton);
+  // Happy Path: Delete a product
+  test('should allow deleting a product', async () => {
+    mockAdminProductApi.deleteProduct.mockResolvedValue(undefined); // Successful deletion
 
-        expect(screen.getByText('Add New Product')).toBeInTheDocument(); // Check for form title
-        expect(screen.getByLabelText('Product Name')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument()); // Ensure products are loaded
+
+    // Click Delete for the first product
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    fireEvent.click(deleteButtons[0]); // This will trigger the confirm dialog
+
+    // Wait for API call and refresh
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalledTimes(1); // Check if confirmation was shown
+      expect(mockAdminProductApi.deleteProduct).toHaveBeenCalledTimes(1);
+      expect(mockAdminProductApi.deleteProduct).toHaveBeenCalledWith('prod-1');
     });
 
-    // Happy Path Test Case 3: Submitting the add product form adds a new product
-    it('should add a new product successfully when form is submitted', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
-
-        const addButton = screen.getByRole('button', { name: 'Add New Product' });
-        fireEvent.click(addButton);
-
-        // Fill the form
-        fireEvent.change(screen.getByLabelText('Product Name'), { target: { value: 'New Product' } });
-        fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A new product for testing' } });
-        fireEvent.change(screen.getByLabelText('Price ($)'), { target: { value: '100.00' } });
-        fireEvent.change(screen.getByLabelText('Stock Quantity'), { target: { value: '25' } });
-
-        // Submit the form
-        fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
-
-        await waitFor(() => {
-            expect(mockApi.addProduct).toHaveBeenCalledTimes(1);
-            expect(mockApi.addProduct).toHaveBeenCalledWith({
-                name: 'New Product',
-                description: 'A new product for testing',
-                price: 100.00,
-                stock: 25,
-            });
-            // Check if the new product appears in the table
-            expect(screen.getByText('New Product')).toBeInTheDocument();
-            expect(screen.getByText('$100.00')).toBeInTheDocument();
-            expect(screen.getByText('25')).toBeInTheDocument();
-        });
+    // Wait for the list to refresh (Laptop should be gone)
+    await waitFor(() => {
+      expect(mockAdminProductApi.getProducts).toHaveBeenCalledTimes(2); // Called once on load, once after delete
+      expect(screen.queryByText('Laptop')).not.toBeInTheDocument();
+      expect(screen.getByText('Keyboard')).toBeInTheDocument(); // Other product should remain
     });
+  });
 
-    // Happy Path Test Case 4: Clicking "Edit" on a product shows the form with pre-filled data
-    it('should display product form with pre-filled data when "Edit" is clicked', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+  // Edge Case: No products found on load
+  test('should display "No products available" when the API returns an empty list', async () => {
+    mockAdminProductApi.getProducts.mockResolvedValue([]); // Simulate empty list
 
-        // Find the edit button for the first product and click it
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
+    render(<AdminProductsPage />);
 
-        expect(screen.getByText('Edit Product')).toBeInTheDocument();
-        expect(screen.getByLabelText('Product Name')).toHaveValue('Laptop');
-        expect(screen.getByLabelText('Price ($)')).toHaveValue('1200');
-        expect(screen.getByRole('button', { name: 'Update Product' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/loading.../i)).not.toBeInTheDocument();
+      expect(screen.getByText(/no products available/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add new product/i })).toBeInTheDocument();
     });
+  });
 
-    // Happy Path Test Case 5: Submitting the edit form updates the product
-    it('should update an existing product successfully when form is submitted', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+  // Error Handling: Failed to fetch products
+  test('should display an error message if fetching products fails', async () => {
+    mockAdminProductApi.getProducts.mockRejectedValue(new Error('Network Error'));
 
-        // Click edit on the first product
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
+    render(<AdminProductsPage />);
 
-        // Modify fields
-        fireEvent.change(screen.getByLabelText('Product Name'), { target: { value: 'Updated Laptop Name' } });
-        fireEvent.change(screen.getByLabelText('Price ($)'), { target: { value: '1150.00' } });
-
-        // Submit the form
-        fireEvent.click(screen.getByRole('button', { name: 'Update Product' }));
-
-        await waitFor(() => {
-            expect(mockApi.editProduct).toHaveBeenCalledTimes(1);
-            expect(mockApi.editProduct).toHaveBeenCalledWith('1', {
-                name: 'Updated Laptop Name',
-                description: 'High performance laptop', // Description is not changed in this test
-                price: 1150.00,
-                stock: 10, // Stock is not changed in this test
-            });
-            // Check if the updated product details are reflected in the table
-            expect(screen.getByText('Updated Laptop Name')).toBeInTheDocument();
-            expect(screen.getByText('$1150.00')).toBeInTheDocument();
-            expect(screen.getByText('10')).toBeInTheDocument(); // Original stock should still be there if not changed
-        });
+    await waitFor(() => {
+      expect(screen.queryByText(/loading.../i)).not.toBeInTheDocument();
+      expect(screen.getByText(/error: failed to load products. please try again later./i)).toBeInTheDocument();
     });
+  });
 
-    // Happy Path Test Case 6: Clicking "Delete" on a product calls deleteProduct API
-    it('should delete a product when delete button is clicked and confirmed', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+  // Error Handling: Failed to create a product
+  test('should display an error message if creating a product fails', async () => {
+    mockAdminProductApi.createProduct.mockRejectedValue(new Error('Failed to create'));
 
-        // Mock window.confirm to return true
-        const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument());
 
-        // Find the delete button for the first product and click it
-        const deleteButton = screen.getAllByText('Delete')[0];
-        fireEvent.click(deleteButton);
+    // Open add form
+    fireEvent.click(screen.getByRole('button', { name: /add new product/i }));
 
-        await waitFor(() => {
-            expect(confirmSpy).toHaveBeenCalledTimes(1);
-            expect(mockApi.deleteProduct).toHaveBeenCalledTimes(1);
-            expect(mockApi.deleteProduct).toHaveBeenCalledWith('1');
-            // Check if the product is removed from the table
-            expect(screen.queryByText('Laptop')).not.toBeInTheDocument();
-        });
+    // Fill and submit form
+    fireEvent.change(screen.getByLabelText(/product name/i), { target: { value: 'Bad Product' } });
+    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Will fail' } });
+    fireEvent.change(screen.getByLabelText(/price/i), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/stock quantity/i), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: /add product/i }));
 
-        confirmSpy.mockRestore();
+    await waitFor(() => {
+      expect(mockAdminProductApi.createProduct).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(/error: failed to save product. please check your inputs and try again./i)).toBeInTheDocument();
     });
+  });
 
-    // Happy Path Test Case 7: Clicking "Cancel" on the form hides it
-    it('should hide the product form when "Cancel" button is clicked', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+  // Error Handling: Failed to delete a product
+  test('should display an error message if deleting a product fails', async () => {
+    mockAdminProductApi.deleteProduct.mockRejectedValue(new Error('Failed to delete'));
 
-        // Open the add form
-        fireEvent.click(screen.getByRole('button', { name: 'Add New Product' }));
-        expect(screen.getByText('Add New Product')).toBeInTheDocument(); // Form title visible
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument());
 
-        // Click cancel
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    // Click delete (confirm is mocked to true)
+    fireEvent.click(screen.getAllByRole('button', { name: /delete/i })[0]);
 
-        await waitFor(() => {
-            // Form should be hidden, table should be visible
-            expect(screen.queryByText('Add New Product')).not.toBeInTheDocument(); // Form title not visible
-            expect(screen.getByText('Laptop')).toBeInTheDocument(); // Product table visible
-        });
+    await waitFor(() => {
+      expect(mockAdminProductApi.deleteProduct).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(/error: failed to delete product. please try again./i)).toBeInTheDocument();
     });
+  });
 
-    // Edge Case Test Case 8: Page shows error message when fetching products fails
-    it('should display an error message if fetching products fails', async () => {
-        mockApi.getProducts.mockRejectedValue(new Error('Network Error'));
-        render(<AdminProductsPage />);
+  // Edge Case: Cancel adding product
+  test('should close the add product form when Cancel is clicked', async () => {
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument());
 
-        await waitFor(() => {
-            expect(mockApi.getProducts).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('Failed to load products. Please try again later.')).toBeInTheDocument();
-            expect(screen.queryByText('Loading products...')).not.toBeInTheDocument();
-        });
-    });
+    // Open add form
+    fireEvent.click(screen.getByRole('button', { name: /add new product/i }));
+    expect(screen.getByLabelText(/product name/i)).toBeInTheDocument(); // Form is open
 
-    // Edge Case Test Case 9: Page shows error message when adding a product fails
-    it('should display an error message if adding a product fails', async () => {
-        mockApi.addProduct.mockRejectedValue(new Error('Failed to add product'));
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
+    // Click cancel
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByLabelText(/product name/i)).not.toBeInTheDocument(); // Form is closed
+    expect(screen.getByRole('button', { name: /add new product/i })).toBeInTheDocument(); // Add button is visible again
+  });
 
-        // Open add form
-        fireEvent.click(screen.getByRole('button', { name: 'Add New Product' }));
+  // Edge Case: Cancel editing product
+  test('should close the edit product form when Cancel is clicked', async () => {
+    render(<AdminProductsPage />);
+    await waitFor(() => expect(screen.getByText('Laptop')).toBeInTheDocument());
 
-        // Fill and submit form
-        fireEvent.change(screen.getByLabelText('Product Name'), { target: { value: 'New Product' } });
-        fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A new product for testing' } });
-        fireEvent.change(screen.getByLabelText('Price ($)'), { target: { value: '100.00' } });
-        fireEvent.change(screen.getByLabelText('Stock Quantity'), { target: { value: '25' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
+    // Open edit form for the first product
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]);
+    expect(screen.getByLabelText(/product name/i)).toHaveValue('Laptop'); // Form is open with data
 
-        await waitFor(() => {
-            expect(mockApi.addProduct).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('Failed to save product. Please check the details and try again.')).toBeInTheDocument();
-        });
-    });
-
-    // Edge Case Test Case 10: Page shows error message when deleting a product fails
-    it('should display an error message if deleting a product fails', async () => {
-        mockApi.deleteProduct.mockRejectedValue(new Error('Failed to delete'));
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
-
-        // Mock confirm to true and click delete
-        const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
-        const deleteButton = screen.getAllByText('Delete')[0];
-        fireEvent.click(deleteButton);
-
-        await waitFor(() => {
-            expect(mockApi.deleteProduct).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('Failed to delete product. Please try again.')).toBeInTheDocument();
-        });
-
-        confirmSpy.mockRestore();
-    });
-
-    // Edge Case Test Case 11: No products found message when getProducts returns empty
-    it('should display "No products found" when the product list is empty', async () => {
-        mockApi.getProducts.mockResolvedValue([]);
-        render(<AdminProductsPage />);
-
-        await waitFor(() => {
-            expect(mockApi.getProducts).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('No products found.')).toBeInTheDocument();
-            expect(screen.queryByText('Loading products...')).not.toBeInTheDocument();
-        });
-    });
-
-    // Error Handling (covered by previous tests, but ensuring form validation works)
-    // Test Case 12: Form validation errors are displayed (this is tested by ProductForm tests, but good to ensure page doesn't crash)
-    it('should not crash when form validation errors occur', async () => {
-        render(<AdminProductsPage />);
-        await waitFor(() => expect(mockApi.getProducts).toHaveBeenCalled());
-
-        // Open add form
-        fireEvent.click(screen.getByRole('button', { name: 'Add New Product' }));
-
-        // Submit with empty fields
-        fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
-
-        await waitFor(() => {
-            expect(mockApi.addProduct).not.toHaveBeenCalled();
-            expect(screen.getByText('All fields are required.')).toBeInTheDocument();
-        });
-    });
+    // Click cancel
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByLabelText(/product name/i)).not.toBeInTheDocument(); // Form is closed
+    expect(screen.getByText('Laptop')).toBeInTheDocument(); // Product is still visible in the table
+  });
 });

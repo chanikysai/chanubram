@@ -1,126 +1,118 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import ProductTable from './ProductTable';
+import React, { useState, useEffect } from 'react';
+import { Product } from '../types/product';
+import * as adminProductApi from '../services/adminProductApi';
 import ProductForm from './ProductForm';
-import { getProducts, addProduct, editProduct, deleteProduct } from '../services/adminProductApi';
-import { Product } from '../types/product'; // Assuming Product type is defined in ../types/product
+import ProductTable from './ProductTable';
 
 const AdminProductsPage: React.FC = () => {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [isAddingNew, setIsAddingNew] = useState<boolean>(false);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isAddingNew, setIsAddingNew] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const fetchProducts = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await getProducts();
-            setProducts(data);
-        } catch (err) {
-            setError('Failed to load products. Please try again later.');
-            console.error('Error fetching products:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await adminProductApi.getProducts();
+      setProducts(data);
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      setError('Failed to load products. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-    const handleAddProductClick = () => {
-        setEditingProduct(null);
-        setIsAddingNew(true);
-    };
+  const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
+    setLoading(true);
+    try {
+      if (editingProduct) {
+        await adminProductApi.updateProduct(editingProduct.id, productData);
+        alert('Product updated successfully!');
+        setEditingProduct(null); // Exit edit mode
+      } else if (isAddingNew) {
+        await adminProductApi.createProduct(productData);
+        alert('Product added successfully!');
+        setIsAddingNew(false); // Exit add mode
+      }
+      fetchProducts(); // Refresh the list
+    } catch (err) {
+      console.error("Failed to save product:", err);
+      setError('Failed to save product. Please check your inputs and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleEditProductClick = (product: Product) => {
-        setEditingProduct(product);
-        setIsAddingNew(false);
-    };
+  const handleCancelEditOrAdd = () => {
+    setEditingProduct(null);
+    setIsAddingNew(false);
+  };
 
-    const handleDeleteProduct = async (id: string) => {
-        if (window.confirm('Are you sure you want to delete this product?')) {
-            setError(null);
-            try {
-                await deleteProduct(id);
-                // Optimistically update UI or re-fetch
-                setProducts(products.filter(product => product.id !== id));
-            } catch (err) {
-                setError('Failed to delete product. Please try again.');
-                console.error('Error deleting product:', err);
-            }
-        }
-    };
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setIsAddingNew(false); // Ensure we are not in 'add new' mode
+  };
 
-    const handleFormSubmit = async (productDetails: Omit<Product, 'id'>) => {
-        setError(null);
-        try {
-            if (editingProduct) {
-                const updatedProduct = await editProduct(editingProduct.id, productDetails);
-                setProducts(products.map(p => (p.id === updatedProduct.id ? updatedProduct : p)));
-                setEditingProduct(null);
-            } else {
-                const newProduct = await addProduct(productDetails);
-                setProducts([...products, newProduct]);
-                setIsAddingNew(false);
-            }
-        } catch (err) {
-            setError('Failed to save product. Please check the details and try again.');
-            console.error('Error saving product:', err);
-        }
-    };
+  const handleDeleteProduct = async (productId: string) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      setLoading(true);
+      try {
+        await adminProductApi.deleteProduct(productId);
+        alert('Product deleted successfully!');
+        fetchProducts(); // Refresh the list
+      } catch (err) {
+        console.error("Failed to delete product:", err);
+        setError('Failed to delete product. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
-    const handleFormCancel = () => {
-        setEditingProduct(null);
-        setIsAddingNew(false);
-    };
+  const toggleAddProductForm = () => {
+    setEditingProduct(null); // Close edit form if open
+    setIsAddingNew(!isAddingNew);
+  };
 
-    return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-6">Product Management</h1>
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Product Management</h1>
 
-            <div className="mb-6">
-                <button
-                    onClick={handleAddProductClick}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                    Add New Product
-                </button>
-            </div>
+      <div className="mb-6 flex justify-between items-center">
+        <button
+          onClick={toggleAddProductForm}
+          className="px-4 py-2 bg-green-500 text-white rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+        >
+          {isAddingNew ? 'Close Add Product' : 'Add New Product'}
+        </button>
+        {loading && <p className="text-blue-500">Loading...</p>}
+        {error && <p className="text-red-500">Error: {error}</p>}
+      </div>
 
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                    <strong className="font-bold">Error: </strong>
-                    <span className="block sm:inline">{error}</span>
-                </div>
-            )}
-
-            {loading && <div className="text-center py-4">Loading products...</div>}
-
-            {!loading && !error && (
-                <>
-                    {(isAddingNew || editingProduct) && (
-                        <div className="mb-6">
-                            <ProductForm
-                                productToEdit={editingProduct || undefined}
-                                onSubmit={handleFormSubmit}
-                                onCancel={handleFormCancel}
-                            />
-                        </div>
-                    )}
-
-                    {!isAddingNew && !editingProduct && (
-                        <ProductTable
-                            products={products}
-                            onEdit={handleEditProductClick}
-                            onDelete={handleDeleteProduct}
-                        />
-                    )}
-                </>
-            )}
+      {(isAddingNew || editingProduct) && (
+        <div className="mb-6">
+          <ProductForm
+            product={editingProduct || undefined}
+            onSubmit={handleSaveProduct}
+            onCancel={handleCancelEditOrAdd}
+          />
         </div>
-    );
+      )}
+
+      <ProductTable
+        products={products}
+        onEdit={handleEditProduct}
+        onDelete={handleDeleteProduct}
+      />
+    </div>
+  );
 };
 
 export default AdminProductsPage;

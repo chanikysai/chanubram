@@ -1,106 +1,108 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ProductTable from '../components/ProductTable';
+import ProductTable from '../../components/ProductTable';
+import { Product } from '../../types/product';
 
-const mockProducts = [
-    { id: '1', name: 'Laptop', description: 'High performance laptop', price: 1200.00, stock: 10 },
-    { id: '2', name: 'Keyboard', description: 'Mechanical keyboard', price: 75.50, stock: 50 },
-    { id: '3', name: 'Mouse', description: 'Wireless mouse', price: 25.00, stock: 100 },
+// Mock data
+const mockProducts: Product[] = [
+  { id: 'prod-1', name: 'Laptop', description: 'High performance laptop', price: 1200, stock: 50, imageUrl: 'http://example.com/laptop.jpg' },
+  { id: 'prod-2', name: 'Keyboard', description: 'Mechanical keyboard', price: 75, stock: 120 },
 ];
 
 describe('ProductTable', () => {
-    // Happy Path Test Case 1: Renders table with products
-    it('should render a table with product data', () => {
-        const mockOnEdit = jest.fn();
-        const mockOnDelete = jest.fn();
-        render(<ProductTable products={mockProducts} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+  const mockEdit = jest.fn();
+  const mockDelete = jest.fn();
 
-        expect(screen.getByText('Laptop')).toBeInTheDocument();
-        expect(screen.getByText('Mechanical keyboard')).toBeInTheDocument();
-        expect(screen.getByText('$1200.00')).toBeInTheDocument();
-        expect(screen.getByText('75.50')).toBeInTheDocument(); // Price formatting test
-        expect(screen.getByText('100')).toBeInTheDocument();
+  beforeEach(() => {
+    mockEdit.mockClear();
+    mockDelete.mockClear();
+  });
 
-        // Ensure all edit/delete buttons are present for each product
-        expect(screen.getAllByText('Edit').length).toBe(3);
-        expect(screen.getAllByText('Delete').length).toBe(3);
-    });
+  // Happy Path: Render table with products
+  test('should render table with products and their details', () => {
+    render(<ProductTable products={mockProducts} onEdit={mockEdit} onDelete={mockDelete} />);
 
-    // Happy Path Test Case 2: Clicking Edit button calls onEdit handler
-    it('should call onEdit handler when Edit button is clicked', () => {
-        const mockOnEdit = jest.fn();
-        const mockOnDelete = jest.fn();
-        render(<ProductTable products={[mockProducts[0]]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+    // Check if table headers are rendered
+    expect(screen.getByText(/image/i)).toBeInTheDocument();
+    expect(screen.getByText(/name/i)).toBeInTheDocument();
+    expect(screen.getByText(/description/i)).toBeInTheDocument();
+    expect(screen.getByText(/price/i)).toBeInTheDocument();
+    expect(screen.getByText(/stock/i)).toBeInTheDocument();
+    expect(screen.getByText(/actions/i)).toBeInTheDocument();
 
-        const editButton = screen.getByText('Edit');
-        fireEvent.click(editButton);
+    // Check if product data is rendered
+    expect(screen.getByText('Laptop')).toBeInTheDocument();
+    expect(screen.getByText('High performance laptop')).toBeInTheDocument();
+    expect(screen.getByText('$1200.00')).toBeInTheDocument();
+    expect(screen.getByText('50')).toBeInTheDocument();
+    expect(screen.getByText('Keyboard')).toBeInTheDocument();
+    expect(screen.getByText('Mechanical keyboard')).toBeInTheDocument();
+    expect(screen.getByText('$75.00')).toBeInTheDocument();
+    expect(screen.getByText('120')).toBeInTheDocument();
 
-        expect(mockOnEdit).toHaveBeenCalledTimes(1);
-        expect(mockOnEdit).toHaveBeenCalledWith(mockProducts[0]);
-    });
+    // Check if image is rendered for the first product
+    const imgElement = screen.getByAltText('Laptop');
+    expect(imgElement).toBeInTheDocument();
+    expect(imgElement).toHaveAttribute('src', 'http://example.com/laptop.jpg');
+  });
 
-    // Happy Path Test Case 3: Clicking Delete button calls onDelete handler
-    it('should call onDelete handler when Delete button is clicked', () => {
-        const mockOnEdit = jest.fn();
-        const mockOnDelete = jest.fn();
-        // Mock window.confirm to return true for deletion confirmation
-        const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
+  // Happy Path: Click Edit button
+  test('should call onEdit with the correct product when Edit button is clicked', () => {
+    render(<ProductTable products={mockProducts} onEdit={mockEdit} onDelete={mockDelete} />);
 
-        render(<ProductTable products={[mockProducts[0]]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+    const firstProductEditButton = screen.getAllByRole('button', { name: /edit/i })[0];
+    fireEvent.click(firstProductEditButton);
 
-        const deleteButton = screen.getByText('Delete');
-        fireEvent.click(deleteButton);
+    expect(mockEdit).toHaveBeenCalledTimes(1);
+    expect(mockEdit).toHaveBeenCalledWith(mockProducts[0]); // Should be called with the first product
+  });
 
-        expect(confirmSpy).toHaveBeenCalledTimes(1); // Check if confirm was called
-        expect(mockOnDelete).toHaveBeenCalledTimes(1);
-        expect(mockOnDelete).toHaveBeenCalledWith(mockProducts[0].id);
+  // Happy Path: Click Delete button
+  test('should call onDelete with the correct product ID when Delete button is clicked', () => {
+    // Mock window.confirm to auto-confirm deletion
+    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
 
-        confirmSpy.mockRestore(); // Clean up the mock
-    });
+    render(<ProductTable products={mockProducts} onEdit={mockEdit} onDelete={mockDelete} />);
 
-    // Edge Case Test Case 4: Renders "No products found" when products array is empty
-    it('should display "No products found" when the products array is empty', () => {
-        const mockOnEdit = jest.fn();
-        const mockOnDelete = jest.fn();
-        render(<ProductTable products={[]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+    const secondProductDeleteButton = screen.getAllByRole('button', { name: /delete/i })[1];
+    fireEvent.click(secondProductDeleteButton);
 
-        expect(screen.getByText('No products found.')).toBeInTheDocument();
-        expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    });
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockDelete).toHaveBeenCalledWith('prod-2'); // Should be called with the ID of the second product
 
-    // Edge Case Test Case 5: Deletion confirmation is handled
-    it('should not call onDelete if user cancels deletion confirmation', () => {
-        const mockOnEdit = jest.fn();
-        const mockOnDelete = jest.fn();
-        // Mock window.confirm to return false for deletion confirmation
-        const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => false);
+    confirmSpy.mockRestore();
+  });
 
-        render(<ProductTable products={[mockProducts[0]]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+  // Edge Case: No products provided
+  test('should display a message when no products are available', () => {
+    render(<ProductTable products={[]} onEdit={mockEdit} onDelete={mockDelete} />);
+    expect(screen.getByText(/no products available/i)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 
-        const deleteButton = screen.getByText('Delete');
-        fireEvent.click(deleteButton);
+  // Error Handling: Image placeholder for missing URL
+  test('should display a placeholder if imageUrl is missing', () => {
+    const productsWithoutImage: Product[] = [
+      { id: 'prod-3', name: 'Mouse', description: 'Wireless mouse', price: 25, stock: 200 }
+    ];
+    render(<ProductTable products={productsWithoutImage} onEdit={mockEdit} onDelete={mockDelete} />);
 
-        expect(confirmSpy).toHaveBeenCalledTimes(1);
-        expect(mockOnDelete).not.toHaveBeenCalled();
+    const noImgDiv = screen.getByText('NoImg');
+    expect(noImgDiv).toBeInTheDocument();
+    expect(noImgDiv).toHaveClass('w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500');
+  });
 
-        confirmSpy.mockRestore();
-    });
+  // Error Handling: Clicking Delete without confirming
+  test('should not call onDelete if user cancels deletion confirmation', () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => false); // User cancels
 
-    // Error Handling (though not directly testable from component's perspective without props for errors)
-    // We test the UI rendering logic based on the 'products' prop.
-    // Any error handling for API calls is within the parent component or service.
-    // This test focuses on the table's reaction to data, including empty data.
+    render(<ProductTable products={mockProducts} onEdit={mockEdit} onDelete={mockDelete} />);
 
-    // Test Case 6: Correctly displays stock quantity
-    it('should display the correct stock quantity', () => {
-        render(<ProductTable products={[mockProducts[0]]} onEdit={jest.fn()} onDelete={jest.fn()} />);
-        expect(screen.getByText('10')).toBeInTheDocument();
-    });
+    const firstProductDeleteButton = screen.getAllByRole('button', { name: /delete/i })[0];
+    fireEvent.click(firstProductDeleteButton);
 
-    // Test Case 7: Correctly displays price with two decimal places
-    it('should display price with two decimal places', () => {
-        render(<ProductTable products={[mockProducts[1]]} onEdit={jest.fn()} onDelete={jest.fn()} />);
-        expect(screen.getByText('$75.50')).toBeInTheDocument();
-    });
+    expect(mockDelete).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
 });
