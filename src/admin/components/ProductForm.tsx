@@ -1,20 +1,19 @@
-import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 
 interface ProductFormProps {
-  product?: Product; // For editing an existing product
+  product?: Product;
   onSubmit: (productData: Omit<Product, 'id'>) => void;
   onCancel: () => void;
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, onCancel }) => {
-  const [name, setName] = useState(product?.name || '');
-  const [description, setDescription] = useState(product?.description || '');
-  const [price, setPrice] = useState(product?.price.toString() || '');
-  const [stock, setStock] = useState(product?.stock.toString() || '');
-  const [imageUrl, setImageUrl] = useState(product?.imageUrl || ''); // Handle image URL
-
-  const isEditing = Boolean(product);
+  const [name, setName] = useState<string>(product?.name || '');
+  const [description, setDescription] = useState<string>(product?.description || '');
+  const [price, setPrice] = useState<string>(product?.price.toString() || '');
+  const [stock, setStock] = useState<string>(product?.stock.toString() || '');
+  const [imageUrl, setImageUrl] = useState<string>(product?.imageUrl || '');
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     if (product) {
@@ -33,123 +32,125 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, onCancel }
     }
   }, [product]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const priceNum = parseFloat(price);
-    const stockNum = parseInt(stock, 10);
+    setError('');
 
-    // Basic validation
-    if (!name || !description || isNaN(priceNum) || isNaN(stockNum) || priceNum < 0 || stockNum < 0) {
-      alert('Please fill in all fields correctly. Price and stock must be non-negative numbers.');
+    if (!name || !description || !price || !stock) {
+      setError('All fields are required.');
+      return;
+    }
+
+    const numericPrice = parseFloat(price);
+    const numericStock = parseInt(stock, 10);
+
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      setError('Price must be a non-negative number.');
+      return;
+    }
+    if (isNaN(numericStock) || numericStock < 0) {
+      setError('Stock must be a non-negative integer.');
       return;
     }
 
     onSubmit({
+      id: product?.id || '', // ID is only relevant for updates, will be ignored by backend for new products
       name,
       description,
-      price: priceNum,
-      stock: stockNum,
-      imageUrl: imageUrl || undefined, // Ensure imageUrl is undefined if empty
+      price: numericPrice,
+      stock: numericStock,
+      imageUrl: imageUrl || undefined, // Handle empty string for optional imageUrl
     });
   };
 
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    // In a real application, this would handle file uploads and return a URL
-    // For now, we'll just log it and set a placeholder or dummy URL
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      console.log('Selected file for upload:', file.name);
-      // Simulate setting an image URL, in a real app this would be an API call response
-      setImageUrl(`http://example.com/images/${file.name}`);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg shadow-sm">
-      <h2 className="text-xl font-bold">{isEditing ? 'Edit Product' : 'Add New Product'}</h2>
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Product Name</label>
-        <input
-          type="text"
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-      </div>
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-          rows={3}
-          className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price ($)</label>
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-2xl font-semibold mb-4 text-gray-700">
+        {product ? 'Edit Product' : 'Add New Product'}
+      </h2>
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="md:col-span-1">
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            Product Name
+          </label>
+          <input
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+            required
+          />
+        </div>
+        <div className="md:col-span-1">
+          <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+            Price
+          </label>
           <input
             type="number"
             id="price"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            required
-            min="0"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
             step="0.01"
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            min="0"
+            required
           />
         </div>
-        <div>
-          <label htmlFor="stock" className="block text-sm font-medium text-gray-700">Stock Quantity</label>
+        <div className="md:col-span-1">
+          <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
+            Stock Quantity
+          </label>
           <input
             type="number"
             id="stock"
             value={stock}
             onChange={(e) => setStock(e.target.value)}
-            required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
             min="0"
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
           />
         </div>
-      </div>
-      <div>
-        <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">Image URL</label>
-        <input
-          type="text"
-          id="imageUrl"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-        {/* Placeholder for file upload */}
-        <div className="mt-2">
-          <label className="block text-sm font-medium text-gray-700">Or Upload Image</label>
+        <div className="md:col-span-1">
+          <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">
+            Image URL (Optional)
+          </label>
           <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="mt-1 block w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 cursor-pointer dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+            type="text"
+            id="imageUrl"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
           />
         </div>
+        <div className="md:col-span-2">
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+            required
+          ></textarea>
+        </div>
       </div>
-
-      <div className="flex justify-end space-x-4">
+      <div className="mt-6 flex justify-end gap-x-4">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          {isEditing ? 'Update Product' : 'Add Product'}
+          {product ? 'Update Product' : 'Add Product'}
         </button>
       </div>
     </form>

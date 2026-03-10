@@ -1,16 +1,14 @@
-// src/main.tsx - Updated to use Product type correctly
 import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+import { createRoot } from 'react-dom/client';
+import App from './App'; // Assuming App.tsx is the main entry point
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Failed to find the root element');
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);

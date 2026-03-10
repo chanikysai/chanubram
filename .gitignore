@@ -1,5 +1,44 @@
-.trippie/
-node_modules
+# Ignore build output, node_modules, and development artifacts
+node_modules/
+dist/
+build/
+.env
+.env.*
+*.local
+*.log
+*.tmp
+*.swp
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDE/Editor specific
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Testing/CI artifacts
+coverage/
+junit.xml
+
+# Temporary files
+*.log
+*.tmp
+
+# Build artifacts
+dist/
+build/
+
+# Specific to React/Frontend
+public/
+*.local
+
+# Backend specific placeholders (if any)
+backend/node_modules/
+backend/dist/
+backend/*.log
 .next
-dist
 .agilint

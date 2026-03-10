@@ -1,47 +1,62 @@
 import { Product } from '../types/product';
 
-// Mock data for demonstration purposes. In a real app, this would come from an API.
-let mockProducts: Product[] = [
-  { id: 'prod-1', name: 'Laptop', description: 'High performance laptop', price: 1200, stock: 50 },
-  { id: 'prod-2', name: 'Keyboard', description: 'Mechanical keyboard', price: 75, stock: 120 },
-];
-let nextId = 3;
+const API_BASE_URL = '/api/admin/products'; // Assuming an API endpoint
+
+// Helper function for making API requests
+const request = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+  return response.json() as Promise<T>;
+};
 
 export const getProducts = async (): Promise<Product[]> => {
-  console.log('Fetching products...');
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return [...mockProducts]; // Return a copy to prevent direct mutation
+  return request<Product[]>(API_BASE_URL);
+};
+
+export const getProductById = async (id: string): Promise<Product> => {
+  return request<Product>(`${API_BASE_URL}/${id}`);
 };
 
 export const createProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
-  console.log('Creating product:', productData);
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const newProduct: Product = {
-    id: `prod-${nextId++}`,
-    ...productData,
-  };
-  mockProducts.push(newProduct);
-  return newProduct;
+  // In a real scenario, the backend would generate the ID.
+  // We'll simulate this by creating a temporary ID or returning the data as is.
+  // For this mock, we'll assume the backend returns the created product with an ID.
+  return request<Product>(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify(productData),
+  });
 };
 
-export const updateProduct = async (productId: string, productData: Partial<Omit<Product, 'id'>>): Promise<Product> => {
-  console.log(`Updating product ${productId}:`, productData);
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const index = mockProducts.findIndex(p => p.id === productId);
-  if (index === -1) {
-    throw new Error('Product not found');
-  }
-  mockProducts[index] = { ...mockProducts[index], ...productData };
-  return mockProducts[index];
+export const updateProduct = async (id: string, productData: Omit<Product, 'id'>): Promise<Product> => {
+  // The backend should return the updated product.
+  return request<Product>(`${API_BASE_URL}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(productData),
+  });
 };
 
-export const deleteProduct = async (productId: string): Promise<void> => {
-  console.log(`Deleting product ${productId}...`);
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const initialLength = mockProducts.length;
-  mockProducts = mockProducts.filter(p => p.id !== productId);
-  if (mockProducts.length === initialLength) {
-    throw new Error('Product not found');
-  }
+export const deleteProduct = async (id: string): Promise<void> => {
+  await request<void>(`${API_BASE_URL}/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+// Mocking for testing purposes if direct fetch is not available or for specific test scenarios
+// In a real app, you would ensure your test setup mocks the fetch API itself.
+export const mockApi = {
+  getProducts: jest.fn(getProducts),
+  getProductById: jest.fn(getProductById),
+  createProduct: jest.fn(createProduct),
+  updateProduct: jest.fn(updateProduct),
+  deleteProduct: jest.fn(deleteProduct),
 };

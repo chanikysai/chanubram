@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard'; // Import ProductCard
+import Recommendations from '../components/Recommendations'; // Import the Recommendations component
 import type { Product } from '../types/product'; // Import Product type
 
 // Mock product data for demonstration
@@ -26,6 +27,11 @@ const HomePage: React.FC = () => {
         ))}
       </div>
 
+      {/* Render the Recommendations component */}
+      <div className="recommendations-container">
+        <Recommendations />
+      </div>
+
       <nav style={{ textAlign: 'center', marginTop: '20px' }}>
         <ul>
           <li>
@@ -44,3 +50,4 @@ const HomePage: React.FC = () => {
 };
 
 export default HomePage;
+
