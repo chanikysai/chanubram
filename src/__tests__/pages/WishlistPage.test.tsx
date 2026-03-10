@@ -1,321 +1,267 @@
-
 // src/__tests__/pages/WishlistPage.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom'; // For testing routing
+import { CartProvider } from '../context/CartContext'; // Assuming CartProvider is in ../context/
 import WishlistPage from '../pages/WishlistPage';
-import { getWishlist, removeFromWishlist } from '../services/wishlistApi';
-import { CartContext } from '../context/CartContext';
+import * as wishlistApi from '../services/wishlistApi'; // Mocking API calls
 import type { Product } from '../types/product';
-import type { WishlistItem as WishlistItemType } from '../types/wishlist';
 
-// Mock the API service functions
-jest.mock('../services/wishlistApi');
-const mockGetWishlist = getWishlist as jest.Mock;
-const mockRemoveFromWishlist = removeFromWishlist as jest.Mock;
+// Mock the Product type if it's not globally available
+interface MockProduct extends Product {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+}
 
-// Mock the CartContext provider and its methods
+// Mocking the CartContext hook
 const mockAddItem = jest.fn();
-const mockCartContextValue = {
-  items: [], // Mock items if needed for other context interactions
-  addItem: mockAddItem,
-  removeItem: jest.fn(), // Mock other methods if they were used in the page
-  updateQuantity: jest.fn(),
-  clearCart: jest.fn(),
-};
+jest.mock('../context/CartContext', () => ({
+  useCart: () => ({
+    addItem: mockAddItem,
+    cartItems: [], // Provide a mock cartItems if needed by other parts
+  }),
+}));
 
-// Mock data
-const MOCK_USER_ID = 'current-user-123'; // Matches the one in WishlistPage.tsx
-
-const mockWishlistItem1: WishlistItemType = {
-  wishlistId: 'wish-item-1',
-  id: 'prod-1', // Product ID
-  productId: 'prod-1',
-  name: 'Awesome T-Shirt',
-  price: 29.99,
-  imageUrl: '/images/tshirt.jpg',
-  addedAt: new Date().toISOString(),
-};
-
-const mockWishlistItem2: WishlistItemType = {
-  wishlistId: 'wish-item-2',
-  id: 'prod-2', // Product ID
-  productId: 'prod-2',
-  name: 'Cool Jeans',
-  price: 75.00,
-  imageUrl: '/images/jeans.jpg',
-  addedAt: new Date().toISOString(),
-};
-
-const mockWishlist = [mockWishlistItem1, mockWishlistItem2];
-
-// Mock Product type for onAddToCart's expected argument
-const mockProduct1ForCart: Product = {
-    id: 'prod-1',
-    name: 'Awesome T-Shirt',
-    price: 29.99,
-    imageUrl: '/images/tshirt.jpg',
-};
+// Mocking wishlist API functions
+const mockFetchWishlistItems = jest.spyOn(wishlistApi, 'fetchWishlistItems');
+const mockRemoveWishlistItem = jest.spyOn(wishlistApi, 'removeWishlistItem');
+const mockMoveWishlistItemToCart = jest.spyOn(wishlistApi, 'moveWishlistItemToCart');
 
 describe('WishlistPage', () => {
-  // Mock window.confirm to control confirmation dialogs
-  let confirmSpy: jest.SpyInstance;
+  const mockProducts: MockProduct[] = [
+    { id: 'wish-item-1', name: 'Fancy Widget', price: 29.99, description: 'A very fancy widget.' },
+    { id: 'wish-item-2', name: 'Basic Gadget', price: 10.00, description: 'A simple, reliable gadget.' },
+  ];
 
   beforeEach(() => {
     // Reset mocks before each test
-    mockGetWishlist.mockClear();
-    mockRemoveFromWishlist.mockClear();
+    mockFetchWishlistItems.mockClear();
+    mockRemoveWishlistItem.mockClear();
+    mockMoveWishlistItemToCart.mockClear();
     mockAddItem.mockClear();
 
-    // Set default mock behavior for API calls
-    mockGetWishlist.mockResolvedValue([]); // Default to empty wishlist
-    mockRemoveFromWishlist.mockResolvedValue([]); // Default to successful removal
-
-    // Mock confirm dialog
-    confirmSpy = jest.spyOn(window, 'confirm');
-    confirmSpy.mockClear(); // Clear any previous mock implementations
+    // Set default mock implementations
+    // For fetchWishlistItems, we'll set it in specific tests if needed
+    mockFetchWishlistItems.mockResolvedValue(mockProducts);
+    mockRemoveWishlistItem.mockResolvedValue(undefined);
+    mockMoveWishlistItemToCart.mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
-    // Restore the original confirm function after each test
-    confirmSpy.mockRestore();
+  // Test 1: Render loading state (happy path during initial load)
+  test('should show loading indicator while fetching wishlist', async () => {
+    // Make fetch return a promise that doesn't resolve immediately
+    mockFetchWishlistItems.mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Loading wishlist...')).toBeInTheDocument();
   });
 
-  // Helper to render the page with the mocked CartContext
-  const renderWithContext = (ui: React.ReactElement) => {
-    return render(<CartContext.Provider value={mockCartContextValue}>{ui}</CartContext.Provider>);
-  };
+  // Test 2: Render wishlist items correctly (happy path)
+  test('should render wishlist items when fetched successfully', async () => {
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
 
-  // Happy Path: Displays wishlist items when available
-  test('displays wishlist items when they are available', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    renderWithContext(<WishlistPage />);
-
-    // Check for loading state initially
-    expect(screen.getByText(/loading your wishlist/i)).toBeInTheDocument();
-
-    // Wait for the loading state to disappear and items to render
+    // Wait for the API call to complete and items to be rendered
     await waitFor(() => {
-      expect(screen.queryByText(/loading your wishlist/i)).not.toBeInTheDocument();
+      expect(screen.getByText('My Wishlist')).toBeInTheDocument();
+      expect(screen.getByText('Fancy Widget')).toBeInTheDocument();
+      expect(screen.getByText('$29.99')).toBeInTheDocument();
+      expect(screen.getByText('Basic Gadget')).toBeInTheDocument();
+      expect(screen.getByText('$10.00')).toBeInTheDocument();
     });
 
-    // Check if product names are rendered
-    expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
-    expect(screen.getByText('Cool Jeans')).toBeInTheDocument();
-
-    // Check if the correct number of items are displayed (implicitly by checking presence of items)
-    // We expect two WishlistItem components to be rendered
-    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(2);
+    expect(mockFetchWishlistItems).toHaveBeenCalledTimes(1);
   });
 
-  // Edge Case: Displays message when wishlist is empty
-  test('displays an empty wishlist message when there are no items', async () => {
-    mockGetWishlist.mockResolvedValue([]); // API returns an empty array
-    renderWithContext(<WishlistPage />);
+  // Test 3: Display empty wishlist message (edge case)
+  test('should display empty wishlist message when no items are returned', async () => {
+    mockFetchWishlistItems.mockResolvedValue([]); // Simulate an empty wishlist
 
-    // Wait for loading to finish
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
+
     await waitFor(() => {
-      expect(screen.queryByText(/loading your wishlist/i)).not.toBeInTheDocument();
+      expect(screen.getByText('My Wishlist')).toBeInTheDocument();
+      expect(screen.getByText('Your wishlist is empty. Start shopping!')).toBeInTheDocument();
+      expect(screen.queryByText('Fancy Widget')).not.toBeInTheDocument(); // Ensure no items are rendered
     });
-
-    // Check for the empty wishlist message
-    expect(screen.getByText(/your wishlist is currently empty/i)).toBeInTheDocument();
-    expect(screen.getByText(/start exploring and add your favorite products!/i)).toBeInTheDocument();
   });
 
-  // Error Handling: Displays error message if fetching wishlist fails
-  test('displays an error message if fetching wishlist fails', async () => {
-    const errorMessage = 'Failed to load your wishlist. Please try again later.';
-    mockGetWishlist.mockRejectedValue(new Error('API Error'));
-    renderWithContext(<WishlistPage />);
+  // Test 4: Handle error during wishlist fetching (error handling)
+  test('should display error message if fetching wishlist fails', async () => {
+    const errorMessage = 'Failed to fetch';
+    mockFetchWishlistItems.mockRejectedValue(new Error(errorMessage));
 
-    // Wait for loading to finish (and error to be shown)
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
+
     await waitFor(() => {
-      expect(screen.queryByText(/loading your wishlist/i)).not.toBeInTheDocument();
+      expect(screen.getByText('My Wishlist')).toBeInTheDocument();
+      expect(screen.getByText('Could not load your wishlist. Please try again later.')).toBeInTheDocument();
+      expect(screen.queryByText('Loading wishlist...')).not.toBeInTheDocument();
     });
-
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    expect(screen.getByText(/failed to load your wishlist/i)).toBeInTheDocument(); // Specific part of error message
   });
 
-  // Interaction Test: Removing an item from the wishlist
-  test('removes an item from the wishlist when the "Remove" button is clicked and confirmed', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    mockRemoveFromWishlist.mockResolvedValue([mockWishlistItem1]); // Simulate successful removal of item 2
-    renderWithContext(<WishlistPage />);
+  // Test 5: Remove an item from the wishlist (happy path)
+  test('should remove item from wishlist when "Remove" button is clicked', async () => {
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
 
     // Wait for items to load
+    await waitFor(() => expect(screen.getByText('Fancy Widget')).toBeInTheDocument());
+
+    // Find the "Remove" button for the first item and click it
+    const firstItemRemoveButton = screen.getAllByText('Remove')[0];
+    fireEvent.click(firstItemRemoveButton);
+
+    // Wait for the API call to resolve and the item to be removed from the UI
     await waitFor(() => {
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
-      expect(screen.getByText('Cool Jeans')).toBeInTheDocument();
-    });
-
-    // Find the "Remove" button for "Cool Jeans"
-    // We need to be careful to target the correct remove button.
-    // Since WishlistItem renders its own buttons, we can query for them within the context of the item.
-    // A more robust way is to find the item by its name and then find the button within it.
-    const jeansItemElement = screen.getByText('Cool Jeans').closest('.wishlist-item');
-    expect(jeansItemElement).toBeInTheDocument();
-
-    const removeButtonForJeans = jeansItemElement?.querySelector('button[aria-label*="Remove Cool Jeans"]');
-    expect(removeButtonForJeans).toBeInTheDocument();
-
-    // Mock window.confirm to return true (user confirms)
-    confirmSpy.mockReturnValue(true);
-
-    // Click the remove button
-    fireEvent.click(removeButtonForJeans!);
-
-    // Wait for the confirmation prompt to be called
-    await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalledTimes(1);
-      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to remove this item from your wishlist?');
-    });
-
-    // Wait for the API call to be made
-    await waitFor(() => {
-      expect(mockRemoveFromWishlist).toHaveBeenCalledTimes(1);
-      expect(mockRemoveFromWishlist).toHaveBeenCalledWith(MOCK_USER_ID, mockWishlistItem2.wishlistId);
-    });
-
-    // Wait for the UI to update (item 2 should be gone)
-    await waitFor(() => {
-      expect(screen.queryByText('Cool Jeans')).not.toBeInTheDocument();
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument(); // Item 1 should still be there
-      expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(1); // Only one remove button left
+      expect(mockRemoveWishlistItem).toHaveBeenCalledTimes(1);
+      expect(mockRemoveWishlistItem).toHaveBeenCalledWith('wish-item-1');
+      expect(screen.queryByText('Fancy Widget')).not.toBeInTheDocument(); // Item should be gone
+      expect(screen.queryByText('Basic Gadget')).toBeInTheDocument(); // Other item should remain
     });
   });
 
-  // Interaction Test: Moving an item to the cart
-  test('moves an item to the cart and removes it from wishlist', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    // Simulate successful removal after adding to cart
-    mockRemoveFromWishlist.mockResolvedValue([mockWishlistItem1]);
-    renderWithContext(<WishlistPage />);
+  // Test 6: Handle error when removing an item (error handling)
+  test('should display error message when removing an item fails', async () => {
+    const errorMessage = 'Failed to remove';
+    mockRemoveWishlistItem.mockRejectedValue(new Error(errorMessage));
+
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
 
     // Wait for items to load
+    await waitFor(() => expect(screen.getByText('Fancy Widget')).toBeInTheDocument());
+
+    // Find the "Remove" button for the first item and click it
+    const firstItemRemoveButton = screen.getAllByText('Remove')[0];
+    fireEvent.click(firstItemRemoveButton);
+
+    // Wait for the error message to appear
     await waitFor(() => {
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
+      expect(mockRemoveWishlistItem).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Could not remove item. Please try again.')).toBeInTheDocument();
+      expect(screen.getByText('Fancy Widget')).toBeInTheDocument(); // Item should still be visible as removal failed
     });
+  });
 
-    // Find the "Add to Cart" button for "Awesome T-Shirt"
-    const tShirtItemElement = screen.getByText('Awesome T-Shirt').closest('.wishlist-item');
-    expect(tShirtItemElement).toBeInTheDocument();
+  // Test 7: Move an item from wishlist to cart (happy path)
+  test('should move item to cart and remove from wishlist when "Add to Cart" is clicked', async () => {
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
 
-    const addToCartButtonForTShirt = tShirtItemElement?.querySelector('button[aria-label*="Add Awesome T-Shirt to cart"]');
-    expect(addToCartButtonForTShirt).toBeInTheDocument();
+    // Wait for items to load
+    await waitFor(() => expect(screen.getByText('Fancy Widget')).toBeInTheDocument());
 
-    // Click the "Add to Cart" button
-    fireEvent.click(addToCartButtonForTShirt!);
+    // Find the "Add to Cart" button for the first item and click it
+    const firstItemAddToCartButton = screen.getAllByText('Add to Cart')[0];
+    fireEvent.click(firstItemAddToCartButton);
 
-    // Wait for the addItem to be called on the context
+    // Wait for the API call to resolve, item to be added to cart, and item to be removed from wishlist
     await waitFor(() => {
+      expect(mockMoveWishlistItemToCart).toHaveBeenCalledTimes(1);
+      expect(mockMoveWishlistItemToCart).toHaveBeenCalledWith('wish-item-1');
       expect(mockAddItem).toHaveBeenCalledTimes(1);
-      // Check if it was called with the correct Product object structure
-      expect(mockAddItem).toHaveBeenCalledWith({
-        id: mockWishlistItem1.id, // Product ID
-        name: mockWishlistItem1.name,
-        price: mockWishlistItem1.price,
-        imageUrl: mockWishlistItem1.imageUrl,
-        description: mockWishlistItem1.description, // Ensure description is passed if available
-      });
-    });
-
-    // Wait for the removeFromWishlist API call to be made (as it's called after addItem)
-    await waitFor(() => {
-      expect(mockRemoveFromWishlist).toHaveBeenCalledTimes(1);
-      expect(mockRemoveFromWishlist).toHaveBeenCalledWith(MOCK_USER_ID, mockWishlistItem1.wishlistId);
-    });
-
-    // Wait for the UI to update (item 1 should be gone from wishlist view)
-    await waitFor(() => {
-      expect(screen.queryByText('Awesome T-Shirt')).not.toBeInTheDocument();
-      expect(screen.getByText('Cool Jeans')).toBeInTheDocument(); // Item 2 should still be there
-      expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(1); // Only one remove button left for item 2
+      expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ id: 'wish-item-1' })); // Check if correct product was added
+      expect(screen.queryByText('Fancy Widget')).not.toBeInTheDocument(); // Item should be gone from wishlist
+      expect(screen.queryByText('Basic Gadget')).toBeInTheDocument(); // Other item should remain
     });
   });
 
-  // Interaction Test: Handle error when removing an item
-  test('displays an error message if removing an item fails', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    mockRemoveFromWishlist.mockRejectedValue(new Error('Failed to remove')); // Simulate API error
-    renderWithContext(<WishlistPage />);
+  // Test 8: Handle error when moving item to cart (error handling)
+  test('should display error message when moving item to cart fails', async () => {
+    const errorMessage = 'Failed to move';
+    mockMoveWishlistItemToCart.mockRejectedValue(new Error(errorMessage));
+
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
 
     // Wait for items to load
+    await waitFor(() => expect(screen.getByText('Fancy Widget')).toBeInTheDocument());
+
+    // Find the "Add to Cart" button for the first item and click it
+    const firstItemAddToCartButton = screen.getAllByText('Add to Cart')[0];
+    fireEvent.click(firstItemAddToCartButton);
+
+    // Wait for the error message to appear
     await waitFor(() => {
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
+      expect(mockMoveWishlistItemToCart).toHaveBeenCalledTimes(1);
+      expect(mockAddItem).not.toHaveBeenCalled(); // AddItem should not be called if move fails
+      expect(screen.getByText('Could not move item to cart. Please try again.')).toBeInTheDocument();
+      expect(screen.getByText('Fancy Widget')).toBeInTheDocument(); // Item should still be visible in wishlist
     });
-
-    // Find and click the remove button for item 1
-    const tShirtItemElement = screen.getByText('Awesome T-Shirt').closest('.wishlist-item');
-    const removeButtonForTShirt = tShirtItemElement?.querySelector('button[aria-label*="Remove Awesome T-Shirt from wishlist"]');
-    confirmSpy.mockReturnValue(true); // User confirms removal
-    fireEvent.click(removeButtonForTShirt!);
-
-    // Wait for API call and error message display
-    await waitFor(() => {
-      expect(mockRemoveFromWishlist).toHaveBeenCalledTimes(1);
-      expect(screen.getByText('Failed to remove item. Please try again.')).toBeInTheDocument();
-    });
-
-    // Ensure the item is still in the list as removal failed
-    expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(2);
   });
 
-  // Interaction Test: Handle error when moving item to cart
-  test('displays an error message if moving an item to cart fails', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    // Simulate API error during removal after adding to cart
-    mockRemoveFromWishlist.mockRejectedValue(new Error('Failed to remove after add'));
-    renderWithContext(<WishlistPage />);
+  // Test 9: Navigation to product page (implicitly tested if links were present)
+  // If WishlistItem had a link to ProductPage, we would test that here.
+  // The current WishlistItem does not have such a link, so this test is not applicable.
 
-    // Wait for items to load
+  // Test 10: Render a product with zero price (edge case for rendering)
+  test('should render a product with zero price correctly', async () => {
+    const zeroPriceProduct: MockProduct = {
+      id: 'wish-item-zero',
+      name: 'Freebie',
+      price: 0.00,
+      description: 'A free item!',
+    };
+    mockFetchWishlistItems.mockResolvedValue([zeroPriceProduct]);
+
+    render(
+      <MemoryRouter>
+        <CartProvider>
+          <WishlistPage />
+        </CartProvider>
+      </MemoryRouter>
+    );
+
     await waitFor(() => {
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
+      expect(screen.getByText('Freebie')).toBeInTheDocument();
+      expect(screen.getByText('$0.00')).toBeInTheDocument();
     });
-
-    // Find and click the "Add to Cart" button for item 1
-    const tShirtItemElement = screen.getByText('Awesome T-Shirt').closest('.wishlist-item');
-    const addToCartButtonForTShirt = tShirtItemElement?.querySelector('button[aria-label*="Add Awesome T-Shirt to cart"]');
-    fireEvent.click(addToCartButtonForTShirt!);
-
-    // Wait for addItem to be called and then for the removeFromWishlist error
-    await waitFor(() => {
-      expect(mockAddItem).toHaveBeenCalledTimes(1);
-      expect(mockRemoveFromWishlist).toHaveBeenCalledTimes(1); // This call will fail
-      expect(screen.getByText('Failed to move item to cart. Please check your connection or try again.')).toBeInTheDocument();
-    });
-
-    // Check that the item is still in the wishlist as the move operation failed
-    expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
-  });
-
-  // Test: User cancels removal confirmation
-  test('does not remove item if user cancels the confirmation dialog', async () => {
-    mockGetWishlist.mockResolvedValue(mockWishlist);
-    renderWithContext(<WishlistPage />);
-
-    // Wait for items to load
-    await waitFor(() => {
-      expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
-    });
-
-    const tShirtItemElement = screen.getByText('Awesome T-Shirt').closest('.wishlist-item');
-    const removeButtonForTShirt = tShirtItemElement?.querySelector('button[aria-label*="Remove Awesome T-Shirt from wishlist"]');
-
-    // Mock window.confirm to return false (user cancels)
-    confirmSpy.mockReturnValue(false);
-
-    fireEvent.click(removeButtonForTShirt!);
-
-    // Wait for confirm to be called
-    await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalledTimes(1);
-    });
-
-    // Ensure no API calls were made and the item is still present
-    expect(mockRemoveFromWishlist).not.toHaveBeenCalled();
-    expect(screen.getByText('Awesome T-Shirt')).toBeInTheDocument();
   });
 });
