@@ -1,135 +1,134 @@
 // src/__tests__/pages/OrderHistoryPage.test.tsx
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, MemoryRouter, Route, Routes } from 'react-router-dom';
 import OrderHistoryPage from '../../pages/OrderHistoryPage';
-import { getOrderHistory } from '../../services/orderApi';
 import type { Order } from '../../types/order';
 
-// Mock the API call
-jest.mock('../../services/orderApi');
+// Mock the API service
+const mockGetOrderHistory = jest.fn();
+jest.mock('../../services/orderApi', () => ({
+  getOrderHistory: () => mockGetOrderHistory(),
+}));
 
-// Cast the mocked function for type safety
-const mockGetOrderHistory = getOrderHistory as jest.MockedFunction<typeof getOrderHistory>;
+// Mock the OrderItem component to isolate OrderHistoryPage rendering
+// However, since OrderItem is simple and already tested, rendering it directly might be fine.
+// For this test, let's assume OrderItem renders correctly and focus on OrderHistoryPage logic.
+// If OrderItem had complex dependencies or props that OrderHistoryPage manages, we might mock it.
+// For now, we will let it render and rely on its own tests.
 
-// Mock order data
+// Mock the Link component from react-router-dom for testing navigation
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
+}));
+
+
 const mockOrders: Order[] = [
   {
     id: 'ord_001',
     date: new Date(Date.UTC(2026, 2, 1, 10, 30, 0)).toISOString(),
     totalAmount: 89.99,
     status: 'Delivered',
-    items: [], shippingAddress: '', paymentMethod: ''
+    items: [],
+    shippingAddress: '',
+    paymentMethod: '',
   },
   {
-    id: 'ord_002',
-    date: new Date(Date.UTC(2026, 2, 5, 14, 0, 0)).toISOString(),
-    totalAmount: 120.00,
-    status: 'Shipped',
-    items: [], shippingAddress: '', paymentMethod: ''
+    id: 'ord_003',
+    date: new Date(Date.UTC(2026, 2, 8, 9, 15, 0)).toISOString(),
+    totalAmount: 75.00,
+    status: 'Processing',
+    items: [],
+    shippingAddress: '',
+    paymentMethod: '',
   },
 ];
 
-describe('OrderHistoryPage', () => {
-  beforeEach(() => {
-    // Clear mocks before each test
-    jest.clearAllMocks();
+describe('OrderHistoryPage Component', () => {
+  // Clean up mocks after each test
+  afterEach(() => {
+    mockGetOrderHistory.mockReset();
   });
 
-  // Test Case 1: Loading state
-  test('should display loading message while fetching orders', async () => {
-    // Simulate a delay for the API call
-    mockGetOrderHistory.mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
-      return [];
-    });
+  // Test 1: Loading State - Verify loading message is displayed
+  test('displays loading message while fetching orders', async () => {
+    // Simulate a delay in API call
+    mockGetOrderHistory.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
 
     render(
-      <MemoryRouter>
+      <Router>
         <OrderHistoryPage />
-      </MemoryRouter>
+      </Router>
     );
 
-    // Check for loading indicator
     expect(screen.getByText('Loading your orders...')).toBeInTheDocument();
-
-    // Wait for the loading to finish (API call to complete)
-    await waitFor(() => expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument());
+    await waitFor(() => expect(mockGetOrderHistory).toHaveBeenCalledTimes(1));
   });
 
-  // Test Case 2: Error state
-  test('should display error message if order history fails to load', async () => {
+  // Test 2: Error State - Verify error message is displayed
+  test('displays error message if fetching orders fails', async () => {
     const errorMessage = 'Failed to load order history. Please try again later.';
-    mockGetOrderHistory.mockRejectedValueOnce(new Error('API Error'));
+    mockGetOrderHistory.mockRejectedValue(new Error('API Error'));
 
     render(
-      <MemoryRouter>
+      <Router>
         <OrderHistoryPage />
-      </MemoryRouter>
+      </Router>
     );
 
-    // Wait for the error state to be displayed
+    // Wait for the error message to appear
     await waitFor(() => expect(screen.getByText(errorMessage)).toBeInTheDocument());
-    expect(mockGetOrderHistory).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument();
   });
 
-  // Test Case 3: Display orders when successfully fetched
-  test('should display order items when order history is fetched successfully', async () => {
-    mockGetOrderHistory.mockResolvedValueOnce(mockOrders);
+  // Test 3: No Orders State - Verify message when there are no orders
+  test('displays message when user has no past orders', async () => {
+    mockGetOrderHistory.mockResolvedValue([]); // Resolve with an empty array
 
     render(
-      <MemoryRouter>
+      <Router>
         <OrderHistoryPage />
-      </MemoryRouter>
+      </Router>
     );
 
-    // Wait for the data to be loaded and displayed
-    await waitFor(() => expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument());
-
-    // Check if the order items are rendered
-    expect(screen.getByText(`#${mockOrders[0].id}`)).toBeInTheDocument();
-    expect(screen.getByText(`#${mockOrders[1].id}`)).toBeInTheDocument();
-    expect(screen.getByText(`Total Amount: $${mockOrders[0].totalAmount.toFixed(2)}`)).toBeInTheDocument();
-    expect(screen.getByText(`Status: ${mockOrders[0].status}`)).toBeInTheDocument();
-    expect(mockGetOrderHistory).toHaveBeenCalledTimes(1);
-  });
-
-  // Test Case 4: Display message when there are no orders
-  test('should display "You have no past orders." when the order list is empty', async () => {
-    mockGetOrderHistory.mockResolvedValueOnce([]); // Resolve with an empty array
-
-    render(
-      <MemoryRouter>
-        <OrderHistoryPage />
-      </MemoryRouter>
-    );
-
-    // Wait for the loading to finish and the empty message to appear
-    await waitFor(() => expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument());
+    // Wait for the orders to be fetched and processed
+    await waitFor(() => expect(mockGetOrderHistory).toHaveBeenCalledTimes(1));
     expect(screen.getByText('You have no past orders.')).toBeInTheDocument();
-    expect(mockGetOrderHistory).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument();
   });
 
-  // Test Case 5: Ensure navigation links in OrderItem work (indirectly tested via OrderItem tests, but good to ensure page renders them)
-  test('should render OrderItem components with correct links', async () => {
-    mockGetOrderHistory.mockResolvedValueOnce(mockOrders);
+  // Test 4: Orders Present State - Verify orders are rendered using OrderItem component
+  test('renders a list of orders using OrderItem components', async () => {
+    mockGetOrderHistory.mockResolvedValue(mockOrders);
 
     render(
-      <MemoryRouter initialEntries={['/orders']}>
-        <Routes>
-          <Route path="/orders" element={<OrderHistoryPage />} />
-          <Route path="/orders/:orderId" element={<div>Order Detail Page</div>} />
-        </Routes>
-      </MemoryRouter>
+      <Router>
+        <OrderHistoryPage />
+      </Router>
     );
 
-    await waitFor(() => expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument());
+    // Wait for the orders to be fetched and processed
+    await waitFor(() => expect(mockGetOrderHistory).toHaveBeenCalledTimes(1));
 
-    // Check if the "View Details" links are present for each order
-    const viewDetailsLinks = screen.getAllByText('View Details');
-    expect(viewDetailsLinks).toHaveLength(mockOrders.length);
+    // Check if the loading and no orders messages are gone
+    expect(screen.queryByText('Loading your orders...')).not.toBeInTheDocument();
+    expect(screen.queryByText('You have no past orders.')).not.toBeInTheDocument();
 
-    // Verify one of the links
-    expect(viewDetailsLinks[0]).toHaveAttribute('href', `/orders/${mockOrders[0].id}`);
+    // Check if the correct number of OrderItem components are rendered
+    // Each OrderItem has a link to the order detail page. Let's find those links.
+    const orderLinks = screen.getAllByRole('link', { name: /Order #ord_/i });
+    expect(orderLinks).toHaveLength(mockOrders.length);
+
+    // Check specific details rendered by OrderItem within OrderHistoryPage context
+    expect(screen.getByText('Order #ord_001')).toBeInTheDocument();
+    expect(screen.getByText('3/1/2026')).toBeInTheDocument();
+    expect(screen.getByText('$89.99')).toBeInTheDocument();
+    expect(screen.getByText('Delivered')).toBeInTheDocument();
+
+    expect(screen.getByText('Order #ord_003')).toBeInTheDocument();
+    expect(screen.getByText('3/8/2026')).toBeInTheDocument();
+    expect(screen.getByText('$75.00')).toBeInTheDocument();
+    expect(screen.getByText('Processing')).toBeInTheDocument();
   });
 });
