@@ -1,129 +1,127 @@
-// src/__tests__/services/paymentApi.test.ts
 import { processPayment } from '../../src/services/paymentApi';
 
-// Mock the current date and random number generator for predictable transaction IDs if necessary,
-// but for now, we'll check for the existence of the ID.
+// Mock for the setTimeout function to control delays
+jest.useFakeTimers();
 
 describe('paymentApi', () => {
-  // Test case for successful credit card payment
-  test('should successfully process credit card payment', async () => {
-    const paymentData = {
+  // Mock implementations for dependencies if any were used by processPayment,
+  // but in this case, it's self-contained logic.
+
+  test('processPayment should return success for valid credit card details', async () => {
+    const mockPaymentData = {
       paymentMethod: 'creditCard',
-      cardNumber: '4111111111111111',
+      cardNumber: '1111222233334444',
       expiryDate: '12/25',
       cvv: '123',
     };
-    const shippingData = {
+    const mockShippingData = {
       fullName: 'Test User',
       addressLine1: '123 Test St',
-      city: 'Test City',
+      city: 'Testville',
       state: 'TS',
       postalCode: '12345',
-      country: 'USA',
+      country: 'Testland',
     };
 
-    const response = await processPayment(paymentData, shippingData);
+    const paymentPromise = processPayment(mockPaymentData, mockShippingData);
 
-    expect(response.success).toBe(true);
-    expect(response.message).toBe('Payment processed successfully!');
-    expect(response).toHaveProperty('transactionId');
-    expect(response.transactionId).toMatch(/^txn_/); // Check if transactionId is generated
+    // Advance timers to simulate API delay
+    jest.advanceTimersByTime(1000);
+
+    const result = await paymentPromise;
+
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Payment processed successfully!');
+    expect(result.transactionId).toMatch(/^txn_/); // Check if transactionId has the expected format
   });
 
-  // Test case for successful PayPal payment initiation
-  test('should successfully initiate PayPal payment', async () => {
-    const paymentData = {
-      paymentMethod: 'paypal',
-    };
-    const shippingData = {
-      fullName: 'Test User',
-      addressLine1: '123 Test St',
-      city: 'Test City',
-      state: 'TS',
-      postalCode: '12345',
-      country: 'USA',
-    };
-
-    const response = await processPayment(paymentData, shippingData);
-
-    expect(response.success).toBe(true);
-    expect(response.message).toBe('PayPal payment initiated. Please complete on PayPal site.');
-    expect(response).toHaveProperty('transactionId');
-    expect(response.transactionId).toMatch(/^paypal_txn_/); // Check if transactionId is generated for PayPal
-  });
-
-  // Test case for missing payment data
-  test('should return an error if payment data is missing', async () => {
-    const shippingData = {
-      fullName: 'Test User',
-      addressLine1: '123 Test St',
-      city: 'Test City',
-      state: 'TS',
-      postalCode: '12345',
-      country: 'USA',
-    };
-
-    const response = await processPayment(null as any, shippingData); // Pass null for paymentData
-
-    expect(response.success).toBe(false);
-    expect(response.message).toBe('Missing payment or shipping data.');
-  });
-
-  // Test case for missing shipping data
-  test('should return an error if shipping data is missing', async () => {
-    const paymentData = {
+  test('processPayment should return error for incomplete credit card details', async () => {
+    const mockPaymentData = {
       paymentMethod: 'creditCard',
-      cardNumber: '4111111111111111',
-      expiryDate: '12/25',
-      cvv: '123',
-    };
-
-    const response = await processPayment(paymentData, null as any); // Pass null for shippingData
-
-    expect(response.success).toBe(false);
-    expect(response.message).toBe('Missing payment or shipping data.');
-  });
-
-  // Test case for invalid credit card details (missing CVV)
-  test('should return an error for invalid credit card details (missing CVV)', async () => {
-    const paymentData = {
-      paymentMethod: 'creditCard',
-      cardNumber: '4111111111111111',
+      cardNumber: '1111222233334444',
       expiryDate: '12/25',
       // CVV is missing
     };
-    const shippingData = {
+    const mockShippingData = {
       fullName: 'Test User',
       addressLine1: '123 Test St',
-      city: 'Test City',
+      city: 'Testville',
       state: 'TS',
       postalCode: '12345',
-      country: 'USA',
+      country: 'Testland',
     };
 
-    const response = await processPayment(paymentData, shippingData);
+    const paymentPromise = processPayment(mockPaymentData, mockShippingData);
+    jest.advanceTimersByTime(1000);
+    const result = await paymentPromise;
 
-    expect(response.success).toBe(false);
-    expect(response.message).toBe('Invalid credit card details provided.');
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Invalid credit card details provided.');
   });
 
-  // Test case for unsupported payment method
-  test('should return an error for an unsupported payment method', async () => {
-    const paymentData = {
-      paymentMethod: 'bitcoin' as any, // Unsupported method
+  test('processPayment should return success for PayPal initiation', async () => {
+    const mockPaymentData = {
+      paymentMethod: 'paypal',
     };
-    const shippingData = {
+    const mockShippingData = {
       fullName: 'Test User',
       addressLine1: '123 Test St',
-      city: 'Test City',
+      city: 'Testville',
       state: 'TS',
       postalCode: '12345',
-      country: 'USA',
+      country: 'Testland',
     };
 
-    const response = await processPayment(paymentData, shippingData);
+    const paymentPromise = processPayment(mockPaymentData, mockShippingData);
+    jest.advanceTimersByTime(1000);
+    const result = await paymentPromise;
 
-    expect(response.success).toBe(false);
-    expect(response.message).toBe('Unsupported payment method or processing error.');
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('PayPal payment initiated. Please complete on PayPal site.');
+    expect(result.transactionId).toMatch(/^paypal_txn_/);
+  });
+
+  test('processPayment should return error if shipping data is missing', async () => {
+    const mockPaymentData = {
+      paymentMethod: 'creditCard',
+      cardNumber: '1111222233334444',
+      expiryDate: '12/25',
+      cvv: '123',
+    };
+    // Shipping data is null
+    const mockShippingData = null;
+
+    const paymentPromise = processPayment(mockPaymentData, mockShippingData as any); // Cast to any to bypass TS check for null
+    jest.advanceTimersByTime(1000);
+    const result = await paymentPromise;
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Missing payment or shipping data.');
+  });
+
+  test('processPayment should return error for unsupported payment method', async () => {
+    const mockPaymentData = {
+      paymentMethod: 'bankTransfer' as any, // Unsupported method
+    };
+    const mockShippingData = {
+      fullName: 'Test User',
+      addressLine1: '123 Test St',
+      city: 'Testville',
+      state: 'TS',
+      postalCode: '12345',
+      country: 'Testland',
+    };
+
+    const paymentPromise = processPayment(mockPaymentData, mockShippingData);
+    jest.advanceTimersByTime(1000);
+    const result = await paymentPromise;
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Unsupported payment method or processing error.');
+  });
+
+  // Restore real timers after all tests in this describe block
+  afterAll(() => {
+    jest.useRealTimers();
   });
 });

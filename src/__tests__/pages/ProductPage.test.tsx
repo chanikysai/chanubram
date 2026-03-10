@@ -1,108 +1,338 @@
-// src/__tests__/pages/ProductPage.test.tsx - Updated to test the component using useParams
-// Mock ProductPage component and test its rendering and interactions.
+// src/__tests__/pages/ProductPage.test.tsx
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { useParams, useNavigate } from 'react-router-dom'; // Mocking react-router-dom hooks
 import ProductPage from '../../pages/ProductPage';
-import { CartProvider, useCart } from '../../context/CartContext';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { Product } from '../../types/product';
+import { submitReview, fetchReviewsByProductId } from '../../services/reviewApi';
 
-// Mock Product type and data
-const mockProduct1: Product = { id: 'p1', name: 'Awesome Gadget', price: 49.99 };
-const mockProduct2: Product = { id: 'p2', name: 'Super Widget', price: 19.50 };
+// Mocking the reviewApi functions
+jest.mock('../../services/reviewApi', () => ({
+  submitReview: jest.fn(),
+  fetchReviewsByProductId: jest.fn(),
+}));
 
-// Mock the useCart hook
-const mockAddItem = jest.fn();
+// Mocking react-router-dom hooks
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useParams: jest.fn(),
+  useNavigate: jest.fn(), // Not used in this component currently, but good to have if needed
+}));
+
+// Mocking the placeholder fetchProductById function
+// This is defined within ProductPage, so we'll need to override its import if it was external
+// For this case, let's assume fetchProductById is available and we can test its interaction.
+// A more robust approach would be to mock the module containing fetchProductById if it were exported.
+// For simplicity, we will test the integration assuming fetchProductById works.
+// If fetchProductById were exported, we'd use: jest.mock('../../utils/productApi', () => ({ fetchProductById: jest.fn() }));
+
+// Helper function to mock fetchProductById
+const mockFetchProductById = jest.fn();
+// We need to ensure the ProductPage uses our mock.
+// Since fetchProductById is defined internally, we can't easily mock it from here.
+// For the sake of testing, we'll assume it works or has been mocked externally if needed.
+// In a real setup, you'd likely export fetchProductById and mock it.
+
+// Mocking global fetch for reviewApi calls
+// @ts-ignore
+global.fetch = jest.fn();
+
 
 describe('ProductPage', () => {
+  const mockProductId = 'test-product-123';
+  const mockUserId = 'user456'; // Mock logged-in user ID
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    // Mock useCart to return default values for each test
-    (useCart as jest.Mock).mockReturnValue({
-      addItem: mockAddItem,
-      cartItems: [], // Default to empty cart
+    // Reset mocks before each test
+    // @ts-ignore
+    useParams.mockReturnValue({ productId: mockProductId });
+    // @ts-ignore
+    useNavigate.mockReturnValue(jest.fn());
+    // @ts-ignore
+    fetch.mockClear();
+    // @ts-ignore
+    submitReview.mockClear();
+    // @ts-ignore
+    fetchReviewsByProductId.mockClear();
+
+    // Mocking fetchProductById behavior internally for this test suite
+    // This is a workaround since fetchProductById is defined inside ProductPage.
+    // A better practice is to export it and mock it from its module.
+    // For now, we'll simulate its return value in the tests where it's called.
+    // We will mock the internal call to fetchProductById through the useEffect hook.
+  });
+
+  // Mocking the internal fetchProductById for the ProductPage component
+  const originalFetchProductById = async (productId: string) => {
+    console.log(`Original fetchProductById called with: ${productId}`);
+    // Mocked implementation for tests
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          id: productId,
+          name: `Mocked Product ${productId}`,
+          description: 'This is a mocked product description.',
+          price: 99.99,
+          imageUrl: `/images/mock-product.jpg`,
+        });
+      }, 10);
     });
-  });
+  };
 
-  it('renders "Product not found." when product ID does not exist in mock data', () => {
-    render(
-      <MemoryRouter initialEntries={['/products/non-existent-id']}>
-        <Routes>
-          <Route path="/products/:productId" element={<ProductPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-    expect(screen.getByText('Product not found.')).toBeInTheDocument();
-  });
+  // Test: Happy path - Product and reviews load successfully
+  test('should load product details and reviews successfully', async () => {
+    const mockProduct = {
+      id: mockProductId,
+      name: 'Awesome Gadget',
+      description: 'The best gadget ever!',
+      price: 100.00,
+      imageUrl: '/images/gadget.jpg',
+    };
+    const mockReviews = [
+      { id: 'rev1', productId: mockProductId, userId: mockUserId, rating: 5, comment: 'Amazing!', createdAt: new Date().toISOString() },
+    ];
+    const mockAverageRating = 5;
 
-  it('renders product details for a valid product ID (p1)', () => {
-    render(
-      <MemoryRouter initialEntries={['/products/p1']}>
-        <Routes>
-          <Route path="/products/:productId" element={<ProductPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-    expect(screen.getByText('Awesome Gadget')).toBeInTheDocument();
-    expect(screen.getByText('$49.99')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add to Cart' })).toBeInTheDocument();
-  });
+    // Mocking fetchProductById directly for this test
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(originalFetchProductById);
 
-  it('calls addItem with the correct product when "Add to Cart" is clicked', () => {
-    render(
-      <MemoryRouter initialEntries={['/products/p1']}>
-        <Routes>
-          <Route path="/products/:productId" element={<ProductPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-    const addButton = screen.getByRole('button', { name: 'Add to Cart' });
-    fireEvent.click(addButton);
+    // Mocking the API calls
+    // @ts-ignore
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockProduct,
+    }); // For fetchProductById
+    // @ts-ignore
+    fetchReviewsByProductId.mockResolvedValueOnce({ reviews: mockReviews, averageRating: mockAverageRating });
 
-    expect(mockAddItem).toHaveBeenCalledTimes(1);
-    expect(mockAddItem).toHaveBeenCalledWith(mockProduct1);
-  });
+    render(<ProductPage />);
 
-  it('displays "In Cart: [quantity]" and no "Add to Cart" button if item is already in cart', () => {
-    // Configure useCart mock to simulate item already being in cart
-    (useCart as jest.Mock).mockReturnValue({
-      addItem: mockAddItem,
-      cartItems: [{ product: mockProduct1, quantity: 3 }],
+    // Check loading state
+    expect(screen.getByText('Loading product details...')).toBeInTheDocument();
+
+    // Wait for product and reviews to load
+    await waitFor(() => {
+      expect(screen.queryByText('Loading product details...')).not.toBeInTheDocument();
+      expect(screen.getByText(mockProduct.name)).toBeInTheDocument();
+      expect(screen.getByText('The best gadget ever!')).toBeInTheDocument();
+      expect(screen.getByText('$100.00')).toBeInTheDocument();
+      expect(screen.getByText('Customer Reviews')).toBeInTheDocument();
+      expect(screen.getByText('Average Rating: 5.0/5')).toBeInTheDocument();
+      expect(screen.getByText('Amazing!')).toBeInTheDocument();
     });
 
-    render(
-      <MemoryRouter initialEntries={['/products/p1']}>
-        <Routes>
-          <Route path="/products/:productId" element={<ProductPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
+    // Ensure API calls were made
+    // @ts-ignore
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining(`/images/${mockProductId}.jpg`)); // Assuming fetchProductById uses fetch for its mock impl
+    expect(fetchReviewsByProductId).toHaveBeenCalledWith(mockProductId);
 
-    expect(screen.getByText('In Cart: 3')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add to Cart' })).not.toBeInTheDocument();
+    // Restore the spy
+    // @ts-ignore
+    jest.restoreAllMocks();
   });
 
-  // Edge case: Product with zero price
-  it('renders correctly with a zero price product and allows adding to cart', () => {
-    const zeroPriceProduct: Product = { id: 'p3', name: 'Freebie', price: 0 };
-    // Temporarily mock the product data directly for this test
-    const originalMockProducts = jest.requireActual('../../pages/ProductPage').mockProducts; // This doesn't work as mockProducts is internal
-    // A better approach: Mock the component's internal data fetching or hardcode the product for the test.
-    // For simplicity, we'll rely on the component's internal mockProducts structure.
-    // If 'p3' existed in mockProducts with price 0, this test would pass.
-    // Let's assume a product with id 'p3' and price 0 is added to mockProducts for this test.
-    // This requires modifying the ProductPage component or its test mocks.
+  // Test: Error handling - Product not found
+  test('should display an error message if product cannot be loaded', async () => {
+    // Mocking fetchProductById to throw an error
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(async () => {
+      throw new Error('Product not found');
+    });
 
-    // To properly test this without modifying ProductPage for tests, we need to mock the data source.
-    // Since ProductPage directly uses internal mockProducts, we can't easily inject a new one for tests without more complex mocking.
-    // Let's acknowledge this limitation and test the existing logic based on p1/p2.
-    // If ProductPage were fetching from an API, we would mock the API call.
+    render(<ProductPage />);
 
-    // This test case assumes the existence of a product with ID 'p3' and price 0.
-    // Since the ProductPage component defines its own mockProducts object internally,
-    // we would need to override that object or the `useParams` hook behavior for this specific test.
-    // As it is, this test might not correctly target a 'p3' product.
-    // For now, we'll rely on the general 'Add to Cart' logic testing.
+    await waitFor(() => {
+      expect(screen.getByText('Error: Product not found')).toBeInTheDocument();
+    });
+
+    // @ts-ignore
+    jest.restoreAllMocks();
+  });
+
+  // Test: Error handling - Reviews fetch fails
+  test('should display an error message if reviews fail to load', async () => {
+    const mockProduct = {
+      id: mockProductId,
+      name: 'Awesome Gadget',
+      description: 'The best gadget ever!',
+      price: 100.00,
+      imageUrl: '/images/gadget.jpg',
+    };
+
+    // Mock fetchProductById
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(originalFetchProductById);
+
+    // Mock fetch for product to succeed, but fetchReviewsByProductId to fail
+    // @ts-ignore
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockProduct });
+    // @ts-ignore
+    fetchReviewsByProductId.mockRejectedValueOnce(new Error('Network error fetching reviews'));
+
+
+    render(<ProductPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(mockProduct.name)).toBeInTheDocument();
+      expect(screen.getByText('Customer Reviews')).toBeInTheDocument();
+      // The error from fetchReviewsByProductId should be handled gracefully by ReviewDisplay
+      // and potentially show "No reviews yet" or similar, not a global error.
+      // The current implementation of fetchReviewsByProductId returns { reviews: [], averageRating: 0 } on error.
+      expect(screen.getByText('No reviews yet. Be the first to leave a review!')).toBeInTheDocument();
+    });
+
+    // @ts-ignore
+    jest.restoreAllMocks();
+  });
+
+  // Test: Submit a new review
+  test('should allow submitting a new review', async () => {
+    const mockProduct = {
+      id: mockProductId,
+      name: 'Awesome Gadget',
+      description: 'The best gadget ever!',
+      price: 100.00,
+      imageUrl: '/images/gadget.jpg',
+    };
+    const mockReviews: Review[] = [];
+    const mockAverageRating = 0;
+    const newReview = {
+      id: 'new-rev-1',
+      productId: mockProductId,
+      userId: mockUserId,
+      rating: 4,
+      comment: 'Pretty good product.',
+      createdAt: new Date().toISOString(),
+    };
+
+    // Mock fetchProductById
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(originalFetchProductById);
+    // Mock fetch for product
+    // @ts-ignore
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockProduct });
+    // Mock fetchReviewsByProductId to return empty initially
+    // @ts-ignore
+    fetchReviewsByProductId.mockResolvedValueOnce({ reviews: mockReviews, averageRating: mockAverageRating });
+    // Mock submitReview to succeed
+    // @ts-ignore
+    submitReview.mockResolvedValueOnce({ success: true, review: newReview });
+
+    render(<ProductPage />);
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.getByText('Leave a Review')).toBeInTheDocument();
+    });
+
+    // Interact with the review form
+    const starButton = screen.getByLabelText('Rate 4 stars');
+    fireEvent.click(starButton);
+
+    const commentInput = screen.getByPlaceholderText('Share your thoughts...');
+    fireEvent.change(commentInput, { target: { value: 'Pretty good product.' } });
+
+    const submitButton = screen.getByRole('button', { name: 'Submit Review' });
+    fireEvent.click(submitButton);
+
+    // Wait for submission and UI update
+    await waitFor(() => {
+      expect(submitReview).toHaveBeenCalledWith(mockProductId, mockUserId, 4, 'Pretty good product.');
+      expect(screen.getByText('Average Rating: 4.0/5')).toBeInTheDocument(); // New average rating
+      expect(screen.getByText('Pretty good product.')).toBeInTheDocument(); // New review displayed
+      expect(screen.getByPlaceholderText('Share your thoughts...')).toHaveValue(''); // Form reset
+      expect(screen.queryByText(/error-message/)).not.toBeInTheDocument();
+    });
+
+    // @ts-ignore
+    jest.restoreAllMocks();
+  });
+
+  // Test: User is not logged in, review form should not be shown
+  test('should show login prompt instead of review form if user is not logged in', async () => {
+    const mockProduct = {
+      id: mockProductId,
+      name: 'Awesome Gadget',
+      description: 'The best gadget ever!',
+      price: 100.00,
+      imageUrl: '/images/gadget.jpg',
+    };
+
+    // Mock fetchProductById
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(originalFetchProductById);
+    // Mock fetch for product
+    // @ts-ignore
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockProduct });
+    // Mock fetchReviewsByProductId
+    // @ts-ignore
+    fetchReviewsByProductId.mockResolvedValueOnce({ reviews: [], averageRating: 0 });
+
+    // Render without userId (simulating logged out user)
+    render(<ProductPage />); // userId is hardcoded as 'user456' inside ProductPage, need to override if possible or note this limitation.
+    // For this test, we'll re-render with a different mock or modify the internal state if necessary.
+    // A cleaner way would be to pass userId as a prop or via context and mock that.
+    // Since userId is hardcoded, let's simulate the scenario by NOT calling submitReview and checking the message.
+
+    await waitFor(() => {
+        expect(screen.getByText('Please log in to leave a review.')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Submit Review' })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/Rate \d stars/)).not.toBeInTheDocument();
+    });
+
+    // @ts-ignore
+    jest.restoreAllMocks();
+  });
+
+  // Test: Submit review fails
+  test('should display an error message if review submission fails', async () => {
+    const mockProduct = {
+      id: mockProductId,
+      name: 'Awesome Gadget',
+      description: 'The best gadget ever!',
+      price: 100.00,
+      imageUrl: '/images/gadget.jpg',
+    };
+    const mockReviews: Review[] = [];
+    const mockAverageRating = 0;
+
+    // Mock fetchProductById
+    // @ts-ignore
+    jest.spyOn(global, 'fetchProductById').mockImplementation(originalFetchProductById);
+    // Mock fetch for product
+    // @ts-ignore
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockProduct });
+    // Mock fetchReviewsByProductId
+    // @ts-ignore
+    fetchReviewsByProductId.mockResolvedValueOnce({ reviews: mockReviews, averageRating: mockAverageRating });
+    // Mock submitReview to fail
+    // @ts-ignore
+    submitReview.mockResolvedValueOnce({ success: false, error: 'Failed to submit review' });
+
+    render(<ProductPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Leave a Review')).toBeInTheDocument();
+    });
+
+    // Interact with the review form
+    const starButton = screen.getByLabelText('Rate 5 stars');
+    fireEvent.click(starButton);
+
+    const commentInput = screen.getByPlaceholderText('Share your thoughts...');
+    fireEvent.change(commentInput, { target: { value: 'This is a test comment.' } });
+
+    const submitButton = screen.getByRole('button', { name: 'Submit Review' });
+    fireEvent.click(submitButton);
+
+    // Wait for error message to appear
+    await waitFor(() => {
+      expect(screen.getByText('Failed to submit review.')).toBeInTheDocument();
+      expect(submitReview).toHaveBeenCalledWith(mockProductId, mockUserId, 5, 'This is a test comment.');
+    });
+
+    // @ts-ignore
+    jest.restoreAllMocks();
   });
 });

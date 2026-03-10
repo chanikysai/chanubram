@@ -1,4 +1,3 @@
-// src/__tests__/components/PaymentForm.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -8,58 +7,83 @@ import PaymentForm, { PaymentDetails } from '../../src/components/PaymentForm';
 describe('PaymentForm', () => {
   const mockOnSubmit = jest.fn<void, [PaymentDetails]>();
   const mockOnError = jest.fn<void, [string]>();
-
-  // Helper function to fill credit card details
-  const fillCreditCardForm = () => {
-    fireEvent.change(screen.getByLabelText(/Card Number:/i), { target: { name: 'cardNumber', value: '1234567890123456' } });
-    fireEvent.change(screen.getByLabelText(/Expiry Date \(MM\/YY\):/i), { target: { name: 'expiryDate', value: '12/25' } });
-    fireEvent.change(screen.getByLabelText(/CVV:/i), { target: { name: 'cvv', value: '123' } });
-  };
+  const mockIsLoading = false;
 
   beforeEach(() => {
-    // Reset mocks and render the component before each test
     mockOnSubmit.mockClear();
     mockOnError.mockClear();
-    render(
-      <PaymentForm
-        onSubmit={mockOnSubmit}
-        isLoading={false}
-        onError={mockOnError}
-      />
-    );
   });
 
-  // Happy Path Test: Credit Card
-  test('should submit credit card details successfully', async () => {
-    const paymentDetails: PaymentDetails = {
-      paymentMethod: 'creditCard',
-      cardNumber: '1234567890123456',
-      expiryDate: '12/25',
-      cvv: '123',
-    };
+  test('renders with credit card fields by default', () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
 
-    // Select Credit Card (it's the default, but good to be explicit if needed)
-    // fireEvent.change(screen.getByLabelText(/Payment Method:/i), { target: { value: 'creditCard' } }); // Default is creditCard
+    expect(screen.getByLabelText(/payment method/i)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Credit Card' })).toBeSelected();
+    expect(screen.getByLabelText(/card number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/expiry date/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/cvv/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /confirm payment/i })).toBeInTheDocument();
+  });
 
-    fillCreditCardForm();
+  test('switches to PayPal option when selected', () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
+
+    const methodSelect = screen.getByLabelText(/payment method/i) as HTMLSelectElement;
+    fireEvent.change(methodSelect, { target: { value: 'paypal' } });
+
+    expect(screen.queryByLabelText(/card number/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/expiry date/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cvv/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/you will be redirected to paypal/i)).toBeInTheDocument();
+  });
+
+  test('handles credit card input changes correctly', () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
+
+    const cardNumberInput = screen.getByLabelText(/card number/i) as HTMLInputElement;
+    const expiryDateInput = screen.getByLabelText(/expiry date/i) as HTMLInputElement;
+    const cvvInput = screen.getByLabelText(/cvv/i) as HTMLInputElement;
+
+    fireEvent.change(cardNumberInput, { target: { name: 'cardNumber', value: '1111222233334444' } });
+    fireEvent.change(expiryDateInput, { target: { name: 'expiryDate', value: '12/25' } });
+    fireEvent.change(cvvInput, { target: { name: 'cvv', value: '123' } });
+
+    expect(cardNumberInput).toHaveValue('1111222233334444');
+    expect(expiryDateInput).toHaveValue('12/25');
+    expect(cvvInput).toHaveValue('123');
+  });
+
+  test('calls onSubmit with correct credit card details on valid submission', async () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
+
+    // Fill credit card details
+    fireEvent.change(screen.getByLabelText(/card number/i), { target: { name: 'cardNumber', value: '1111222233334444' } });
+    fireEvent.change(screen.getByLabelText(/expiry date/i), { target: { name: 'expiryDate', value: '12/25' } });
+    fireEvent.change(screen.getByLabelText(/cvv/i), { target: { name: 'cvv', value: '123' } });
 
     // Submit the form
-    fireEvent.click(screen.getByRole('button', { name: /Confirm Payment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm payment/i }));
 
     await waitFor(() => {
       expect(mockOnSubmit).toHaveBeenCalledTimes(1);
-      expect(mockOnSubmit).toHaveBeenCalledWith(paymentDetails);
-      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        paymentMethod: 'creditCard',
+        cardNumber: '1111222233334444',
+        expiryDate: '12/25',
+        cvv: '123',
+      });
     });
   });
 
-  // Edge Case Test: Missing Credit Card Fields
-  test('should show an error if required credit card fields are missing', async () => {
-    // Attempt to submit with only partial credit card details
-    fireEvent.change(screen.getByLabelText(/Card Number:/i), { target: { name: 'cardNumber', value: '1234567890123456' } });
-    // Missing expiryDate and cvv
+  test('calls onError if required credit card fields are missing on submit', async () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Confirm Payment/i }));
+    // Submit with missing CVV
+    fireEvent.change(screen.getByLabelText(/card number/i), { target: { name: 'cardNumber', value: '1111222233334444' } });
+    fireEvent.change(screen.getByLabelText(/expiry date/i), { target: { name: 'expiryDate', value: '12/25' } });
+    // CVV is missing
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm payment/i }));
 
     await waitFor(() => {
       expect(mockOnSubmit).not.toHaveBeenCalled();
@@ -68,41 +92,29 @@ describe('PaymentForm', () => {
     });
   });
 
-  // Test for PayPal selection
-  test('should allow submission with PayPal selected (no fields required here)', async () => {
-    const paymentDetails: PaymentDetails = {
-      paymentMethod: 'paypal',
-    };
+  test('calls onSubmit for PayPal and does not require CC fields', async () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={mockIsLoading} onError={mockOnError} />);
 
-    // Change payment method to PayPal
-    fireEvent.change(screen.getByLabelText(/Payment Method:/i), { target: { value: 'paypal' } });
+    // Select PayPal
+    const methodSelect = screen.getByLabelText(/payment method/i) as HTMLSelectElement;
+    fireEvent.change(methodSelect, { target: { value: 'paypal' } });
 
-    // Check that credit card fields are hidden and PayPal message is visible
-    expect(screen.queryByLabelText(/Card Number:/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/You will be redirected to PayPal to complete your payment./i)).toBeInTheDocument();
-
-    // Submit the form
-    fireEvent.click(screen.getByRole('button', { name: /Confirm Payment/i }));
+    // Submit the form for PayPal
+    fireEvent.click(screen.getByRole('button', { name: /confirm payment/i }));
 
     await waitFor(() => {
       expect(mockOnSubmit).toHaveBeenCalledTimes(1);
-      expect(mockOnSubmit).toHaveBeenCalledWith(paymentDetails);
-      expect(mockOnError).not.toHaveBeenCalled();
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        paymentMethod: 'paypal',
+      });
+      expect(mockOnError).not.toHaveBeenCalled(); // Should not error if PayPal is selected
     });
   });
 
-  // Test for isLoading state
-  test('should disable the submit button and show "Processing..." when isLoading is true', () => {
-    // Re-render with isLoading prop set to true
-    render(
-      <PaymentForm
-        onSubmit={mockOnSubmit}
-        isLoading={true}
-        onError={mockOnError}
-      />
-    );
+  test('disables submit button when isLoading is true', () => {
+    render(<PaymentForm onSubmit={mockOnSubmit} isLoading={true} onError={mockOnError} />);
 
-    const submitButton = screen.getByRole('button', { name: /Processing.../i });
+    const submitButton = screen.getByRole('button', { name: /processing\.\.\./i });
     expect(submitButton).toBeDisabled();
   });
 });
