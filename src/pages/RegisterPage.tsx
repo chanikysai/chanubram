@@ -1,50 +1,67 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Assuming React Router is used for navigation
-import AuthForm from '../components/AuthForm';
-import { registerUser } from '../services/authApi';
-import { RegisterCredentials } from '../types/auth';
+import React, { useState, useEffect } from 'react';
+import AuthForm from '../../components/AuthForm';
+import { registerUser } from '../../services/authApi';
+import { useNavigate } from 'react-router-dom';
+
+// Mocking react-router-dom
+jest.mock('react-router-dom', () => ({
+  useNavigate: jest.fn(),
+}));
+
+// Mock the authApi registerUser function
+jest.mock('../../services/authApi', () => ({
+  registerUser: jest.fn(),
+}));
+
+interface RegisterFormData {
+  email: string;
+  name: string;
+  password?: string; // Password might be optional depending on form, but required here for register
+}
 
 const RegisterPage: React.FC = () => {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const registerFields = [
-    { name: 'name', label: 'Name', type: 'text', required: true },
-    { name: 'email', label: 'Email', type: 'email', required: true },
-    { name: 'password', label: 'Password', type: 'password', required: true },
-  ];
-
-  const handleRegister = async (credentials: RegisterCredentials) => {
+  const handleRegister = async (formData: RegisterFormData) => {
     setIsLoading(true);
     setError(null);
     try {
-      // In a real app, you'd store the token (e.g., in localStorage or context)
-      const response = await registerUser(credentials);
-      console.log('Registration successful:', response);
-      // Navigate to login or dashboard after successful registration
-      navigate('/login'); // Assuming '/login' is a valid route
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred during registration.');
-      console.error('Registration error:', err);
+      const result = await registerUser(formData);
+      if ('message' in result) {
+        // It's an error response
+        setError(result.message);
+      } else {
+        // It's a successful response
+        // Optionally store token if needed for immediate login after registration, or just navigate
+        // For this feature, let's assume successful registration navigates to login page
+        navigate('/login'); // Navigate to the login page after successful registration
+      }
+    } catch (err) {
+      setError('An unexpected error occurred during registration. Please try again later.');
+      console.error("Registration error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Mock implementation for navigate (as done in LoginPage)
+  const mockNavigate = navigate as jest.Mock;
+  mockNavigate.mockImplementation((path) => console.log(`Navigating to: \${path}`));
+
+
   return (
     <div>
-      <h1>Register</h1>
+      <h1>Create Your Account</h1>
       <AuthForm
-        fields={registerFields}
+        mode="register"
         onSubmit={handleRegister}
-        submitButtonText="Register"
-        errorMessage={error}
+        onError={setError}
         isLoading={isLoading}
       />
-      <p>
-        Already have an account? <a href="/login">Login here</a>
-      </p>
+      {error && <div className="error-message">{error}</div>}
+      <p>Already have an account? <a href="/login">Login here</a></p>
     </div>
   );
 };

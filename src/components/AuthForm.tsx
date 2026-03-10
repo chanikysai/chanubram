@@ -1,55 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, FormEvent } from 'react';
 
 interface AuthFormProps {
-  onSubmit: (credentials: any) => Promise<void>; // Generic credentials type for flexibility
-  initialFields?: Record<string, string>;
-  fields: { name: string; label: string; type?: string; required?: boolean }[];
-  submitButtonText: string;
-  errorMessage?: string;
-  isLoading?: boolean;
+  mode: 'login' | 'register';
+  onSubmit: (formData: any) => void; // Use a more specific type later
+  onError: (error: string) => void;
+  isLoading: boolean;
 }
 
-const AuthForm: React.FC<AuthFormProps> = ({
-  onSubmit,
-  initialFields = {},
-  fields,
-  submitButtonText,
-  errorMessage,
-  isLoading,
-}) => {
-  const [formData, setFormData] = useState<Record<string, string>>(initialFields);
+const AuthForm: React.FC<AuthFormProps> = ({ mode, onSubmit, onError, isLoading }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState(''); // Only for registration
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const isRegisterMode = mode === 'register';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    setErrorMessage(''); // Clear previous errors
+
+    if (!email || !password || (isRegisterMode && !name)) {
+      setErrorMessage('Please fill in all fields.');
+      onError('Please fill in all fields.'); // Propagate to parent
+      return;
+    }
+
+    const formData = { email, password };
+    if (isRegisterMode) {
+      // @ts-ignore - name is conditionally added, TS might complain without this
+      formData.name = name;
+    }
+
+    onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="auth-form">
-      {fields.map((field) => (
-        <div key={field.name} className="form-group">
-          <label htmlFor={field.name}>{field.label}</label>
+      <h2>{isRegisterMode ? 'Register' : 'Login'}</h2>
+
+      {errorMessage && <div className="error-message">{errorMessage}</div>}
+      {/* Parent component might also manage and display errors */}
+
+      <div className="form-group">
+        <label htmlFor="email">Email:</label>
+        <input
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required={true}
+          disabled={isLoading}
+        />
+      </div>
+
+      {isRegisterMode && (
+        <div className="form-group">
+          <label htmlFor="name">Name:</label>
           <input
-            type={field.type || 'text'}
-            id={field.name}
-            name={field.name}
-            value={formData[field.name] || ''}
-            onChange={handleChange}
-            required={field.required}
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required={true}
             disabled={isLoading}
           />
         </div>
-      ))}
+      )}
 
-      {errorMessage && <p className="error-message">{errorMessage}</p>}
+      <div className="form-group">
+        <label htmlFor="password">Password:</label>
+        <input
+          type="password"
+          id="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required={true}
+          disabled={isLoading}
+        />
+      </div>
 
       <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Processing...' : submitButtonText}
+        {isLoading ? 'Processing...' : (isRegisterMode ? 'Register' : 'Login')}
       </button>
     </form>
   );
