@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import VendorRegistrationForm, { VendorRegistrationData } from '../components/VendorRegistrationForm'; // Adjusted import path
-import { registerVendor, Vendor, ApiError, getCurrentVendor, fetchVendorById, updateVendor } from '../services/vendorApi'; // Adjusted import path
+import { registerVendor, Vendor, ApiError, getCurrentVendor, fetchVendorById, updateVendor } from '../../services/vendorApi'; // Adjusted import path
 import VendorDashboardPage from '../pages/VendorDashboardPage'; // Adjusted import path
 
 // Mock the vendor API
-jest.mock('../services/vendorApi');
+jest.mock('../../services/vendorApi');
 // Mock react-router-dom hooks
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),

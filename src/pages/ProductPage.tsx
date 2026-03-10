@@ -7,6 +7,7 @@ import ReviewForm from '../components/ReviewForm'; // Adjust path as needed
 import ReviewDisplay from '../components/ReviewDisplay'; // Adjust path as needed
 import { Product } from '../types/product'; // Assuming a Product type exists
 import { getProductById } from '../services/productApi'; // Assuming productApi.ts and Product type exist
+import Recommendations from '../components/Recommendations'; // Import the Recommendations component
 
 const ProductPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>(); // Get productId from URL params
@@ -85,6 +86,11 @@ const ProductPage: React.FC = () => {
       {product.imageUrl && <img src={product.imageUrl} alt={product.name} style={{ maxWidth: '300px', marginBottom: '20px' }} />}
       <p>{product.description}</p>
       <p><strong>Price: ${product.price.toFixed(2)}</strong></p>
+
+      <hr />
+
+      {/* Render Recommendations component here */}
+      <Recommendations productId={product.id} />
 
       <hr />
 

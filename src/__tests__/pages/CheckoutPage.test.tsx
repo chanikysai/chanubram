@@ -4,12 +4,12 @@ import '@testing-library/jest-dom';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 
 import CheckoutPage from '../../src/pages/CheckoutPage';
-import { processPayment } from '../../src/services/paymentApi'; // Mock this
+import { processPayment } from '../../services/paymentApi'; // Mock this
 import { ShippingAddress } from '../../src/components/CheckoutForm'; // Mock this
 import { PaymentDetails } from '../../src/components/PaymentForm'; // Mock this
 
 // Mock the payment API
-jest.mock('../../src/services/paymentApi');
+jest.mock('../../services/paymentApi');
 const mockProcessPayment = processPayment as jest.Mock;
 
 // Mock react-router-dom navigate

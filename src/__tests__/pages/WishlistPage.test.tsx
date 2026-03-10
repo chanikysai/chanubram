@@ -17,7 +17,7 @@ interface MockProduct extends Product {
 
 // Mocking the CartContext hook
 const mockAddItem = jest.fn();
-jest.mock('../context/CartContext', () => ({
+jest.mock('../../context/CartContext', () => ({
   useCart: () => ({
     addItem: mockAddItem,
     cartItems: [], // Provide a mock cartItems if needed by other parts

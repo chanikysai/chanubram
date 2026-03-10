@@ -2,11 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 // Import component
-// CORRECTED IMPORT PATH
-import VendorDashboardPage from '../pages/VendorDashboardPage'; // Import from ../pages/
+import VendorDashboardPage from '../pages/VendorDashboardPage'; // Correct path: ../pages/
 // Import specific functions and types from the API module
-import * as vendorApi from '../../services/vendorApi'; // Import the module
-import { Vendor, VendorRegistrationData, ApiError } from '../../services/vendorApi'; // Import types
+// We need to import the module itself to use jest.spyOn
+import * as vendorApi from '../../services/vendorApi';
+import { Vendor, VendorRegistrationData, ApiError } from '../../services/vendorApi';
 import { useNavigate } from 'react-router-dom';
 
 // Mock react-router-dom
@@ -15,16 +15,31 @@ jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(() => mockNavigate), // Provide a mock implementation for useNavigate
 }));
 
-// Use spies for mocking functions
-const getCurrentVendorSpy = jest.spyOn(vendorApi, 'getCurrentVendor');
-const registerVendorSpy = jest.spyOn(vendorApi, 'registerVendor');
+// Mock the API module using jest.mock at the top level.
+// Jest will create an auto-mock for this module.
+jest.mock('../../services/vendorApi');
+
+// Now, import the module normally. Since it's mocked, Jest will provide the mock.
+// We will then use jest.spyOn to control the behavior of its functions.
+import * as mockedVendorApi from '../../services/vendorApi';
 
 describe('VendorDashboardPage', () => {
+  // Use spies for mocking functions
+  let getCurrentVendorSpy: jest.SpyInstance;
+  let registerVendorSpy: jest.SpyInstance;
+
   beforeEach(() => {
-    // Reset spies before each test
-    getCurrentVendorSpy.mockClear();
-    registerVendorSpy.mockClear();
+    // Reset mocks before each test
+    // Use jest.spyOn to mock specific functions from the imported module
+    // These spies will be active only for the duration of the test.
+    getCurrentVendorSpy = jest.spyOn(vendorApi, 'getCurrentVendor');
+    registerVendorSpy = jest.spyOn(vendorApi, 'registerVendor');
     mockNavigate.mockClear();
+  });
+
+  afterEach(() => {
+    // Restore original implementations after each test to avoid test pollution
+    jest.restoreAllMocks();
   });
 
   test('shows loading state initially', () => {
@@ -118,7 +133,7 @@ describe('VendorDashboardPage', () => {
   });
 
   test('handles vendor registration API error', async () => {
-    getCurrentVendorSpy.mockResolvedValue(null); // Start as if no vendor is logged in
+    mockGetCurrentVendor.mockResolvedValue(null); // Start as if no vendor is logged in
     render(<VendorDashboardPage />);
 
     // Wait for the registration form to be visible
@@ -162,7 +177,7 @@ describe('VendorDashboardPage', () => {
       status: 'approved',
       createdAt: new Date().toISOString(),
     };
-    getCurrentVendorSpy.mockResolvedValue(mockVendor);
+    mockGetCurrentVendor.mockResolvedValue(mockVendor);
     render(<VendorDashboardPage />);
 
     await screen.findByText(/manage products/i); // Wait for dashboard to load
@@ -175,7 +190,7 @@ describe('VendorDashboardPage', () => {
 
   test('handles error fetching vendor data', async () => {
     const errorMessage = 'Network Error';
-    getCurrentVendorSpy.mockRejectedValue(new Error(errorMessage)); // Simulate network error
+    mockGetCurrentVendor.mockRejectedValue(new Error(errorMessage)); // Simulate network error
 
     render(<VendorDashboardPage />);
 

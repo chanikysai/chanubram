@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 import * as adminProductApi from '../services/adminProductApi';
-import ProductForm from './ProductForm';
+import ProductForm from '../components/ProductForm';
 import ProductTable from './ProductTable';
 
 const AdminProductsPage: React.FC = () => {

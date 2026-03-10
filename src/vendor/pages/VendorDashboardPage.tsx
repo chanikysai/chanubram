@@ -1,7 +1,9 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import VendorRegistrationForm from './VendorRegistrationForm'; // Import the new form component
-import { getCurrentVendor, registerVendor, Vendor, VendorRegistrationData, ApiError } from '../services/vendorApi'; // Import API functions and types
+// CORRECTED IMPORT PATH FOR VENDORREGISTRATIONFORM
+import VendorRegistrationForm from '../components/VendorRegistrationForm'; // Correct path: ../components/
+// CORRECTED IMPORT PATH FOR API SERVICES
+import { getCurrentVendor, registerVendor, Vendor, VendorRegistrationData, ApiError } from '../../services/vendorApi'; // Correct path: ../../services/
 import { act } from 'react'; // Import act for testing
 
 const VendorDashboardPage: React.FC = () => {
