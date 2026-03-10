@@ -1,7 +1,7 @@
 // src/pages/ProductPage.tsx - Updated to use Product type correctly
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+// import { useCart } from '../context/CartContext';
 import ProductDetail from '../components/ProductDetail'; // Import ProductDetail
 import type { Product } from '../types/product';
 
@@ -14,24 +14,22 @@ const mockProducts: Record<string, Product> = {
 
 const ProductPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
-  const { addItem, cartItems } = useCart();
+  // const { addItem, cartItems } = useCart();
 
   // Ensure productId is available before accessing mockProducts
   const product = productId ? mockProducts[productId] : null;
 
-  const handleAddToCart = () => {
-    if (product) {
-      addItem(product);
-    }
-  };
-
+  // const handleAddToCart = () => {
+  //   if (product) {
+  //     addItem(product);
+  //   }
+  // };
   if (!product) {
     return <div>Product not found.</div>;
   }
 
-  const isItemInCart = cartItems.some(item => item.product.id === product.id);
-  const cartItem = cartItems.find(item => item.product.id === product.id);
-
+  // const isItemInCart = cartItems.some(item => item.product.id === product.id);
+  // const cartItem = cartItems.find(item => item.product.id === product.id);
   return (
     <div className="product-detail-page">
       <ProductDetail product={product} /> {/* Render ProductDetail */}

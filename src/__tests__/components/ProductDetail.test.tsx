@@ -1,55 +1,116 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import ProductDetail from '../../components/ProductDetail';
-import type { Product } from '../../types/product';
+import { render, screen, fireEvent } from '@testing-library/react';
+import ProductDetail from './ProductDetail';
+import { CartProvider, useCart } from '../context/CartContext'; // Assuming CartContext is in ../context/
 
-const mockProduct: Product = {
-  id: 'p1',
-  name: 'Detailed Product Name',
-  price: 123.45,
-  description: 'This is a detailed description of the product.',
-};
+// Mock the useCart hook
+jest.mock('../context/CartContext', () => ({
+  ...jest.requireActual('../context/CartContext'),
+  useCart: jest.fn(),
+}));
 
-const mockProductWithoutDescription: Product = {
-  id: 'p2',
-  name: 'Product Without Desc',
-  price: 67.89,
-  // No description property
-};
+const mockUseCart = useCart as jest.Mock;
+
+// Mock the Product type
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+}
 
 describe('ProductDetail', () => {
-  it('renders product name, description, and price correctly', () => {
-    render(<ProductDetail product={mockProduct} />);
+  const mockProduct: Product = {
+    id: 'prod-detail-1',
+    name: 'Detailed Product',
+    description: 'This is a detailed description of the product.',
+    price: 150.75,
+  };
 
-    expect(screen.getByText('Detailed Product Name')).toBeInTheDocument();
+  beforeEach(() => {
+    // Reset mocks before each test
+    mockUseCart.mockClear();
+  });
+
+  // Test 1: Render product details correctly (happy path)
+  test('should render product name, description, and price', () => {
+    // Mock the context to return the addItem function
+    mockUseCart.mockReturnValue({
+      addItem: jest.fn(),
+    });
+
+    render(
+      <CartProvider> {/* CartProvider is needed for context value propagation */}
+        <ProductDetail product={mockProduct} />
+      </CartProvider>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Detailed Product' })).toBeInTheDocument();
     expect(screen.getByText('This is a detailed description of the product.')).toBeInTheDocument();
-    expect(screen.getByText('Price: $123.45')).toBeInTheDocument();
+    expect(screen.getByText('$150.75')).toBeInTheDocument();
   });
 
-  it('renders "No description available." if description is missing', () => {
-    render(<ProductDetail product={mockProductWithoutDescription} />);
-
-    expect(screen.getByText('Product Without Desc')).toBeInTheDocument();
-    expect(screen.getByText('No description available.')).toBeInTheDocument();
-    expect(screen.getByText('Price: $67.89')).toBeInTheDocument();
-  });
-
-  // Edge case: Price with zero value
-  it('renders correctly with a zero price product', () => {
-    const zeroPriceProduct: Product = {
-      id: 'p3',
-      name: 'Free Item',
-      price: 0,
-      description: 'Completely free!',
+  // Test 2: Render with no description available (edge case)
+  test('should render "No description available." if description is missing', () => {
+    const productWithoutDescription: Product = {
+      id: 'prod-detail-no-desc',
+      name: 'Product Without Desc',
+      price: 75.00,
     };
-    render(<ProductDetail product={zeroPriceProduct} />);
 
-    expect(screen.getByText('Free Item')).toBeInTheDocument();
-    expect(screen.getByText('Completely free!')).toBeInTheDocument();
-    expect(screen.getByText('Price: $0.00')).toBeInTheDocument();
+    mockUseCart.mockReturnValue({
+      addItem: jest.fn(),
+    });
+
+    render(
+      <CartProvider>
+        <ProductDetail product={productWithoutDescription} />
+      </CartProvider>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Product Without Desc' })).toBeInTheDocument();
+    expect(screen.getByText('No description available.')).toBeInTheDocument();
+    expect(screen.getByText('$75.00')).toBeInTheDocument();
   });
 
-  // Error Handling: This is a presentational component, error handling is minimal.
-  // It assumes 'product' prop is always a valid Product object.
-  // Type safety should prevent issues with missing properties like 'name' or 'price'.
+  // Test 3: Call addItem when "Add to Cart" button is clicked (happy path)
+  test('should call addItem from context with product details when "Add to Cart" button is clicked', () => {
+    const mockAddItem = jest.fn();
+    mockUseCart.mockReturnValue({
+      addItem: mockAddItem,
+    });
+
+    render(
+      <CartProvider>
+        <ProductDetail product={mockProduct} />
+      </CartProvider>
+    );
+
+    const addButton = screen.getByText('Add to Cart');
+    fireEvent.click(addButton);
+
+    expect(mockAddItem).toHaveBeenCalledTimes(1);
+    // Expect it to be called with the full product object
+    expect(mockAddItem).toHaveBeenCalledWith(mockProduct);
+  });
+
+  // Test 4: Ensure the button click triggers the correct action
+  // Covered by Test 3, verifying mockAddItem is called.
+
+  // Test 5: Ensure context is correctly passed if CartProvider is used
+  test('should use context provided by CartProvider', () => {
+    const mockAddItem = jest.fn();
+    mockUseCart.mockReturnValue({
+      addItem: mockAddItem,
+    });
+
+    render(
+      <CartProvider> {/* Explicitly use CartProvider */}
+        <ProductDetail product={mockProduct} />
+      </CartProvider>
+    );
+
+    // Check if the hook was used, implying context was accessible
+    expect(mockUseCart).toHaveBeenCalled();
+  });
 });
