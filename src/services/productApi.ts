@@ -1,24 +1,47 @@
 // src/services/productApi.ts
-// This file would typically contain functions for fetching product data from an API.
-// For this feature, we'll leave it as a placeholder.
+import { Product } from '../types/product';
 
-export const fetchProductById = async (id: string): Promise<any> => {
-  // Simulate API call
-  console.log(`Simulating API call to fetch product with ID: ${id}`);
-  // In a real application, you would fetch from your backend API here
-  // Example:
-  // const response = await fetch(`/api/products/${id}`);
-  // if (!response.ok) {
-  //   throw new Error('Failed to fetch product');
-  // }
-  // return response.json();
-
-  // Mock data for demonstration if needed for testing ProductPage directly
-  // This part might be better handled within ProductPage's tests or by a mock server
-  return null; // Placeholder
+// Mock product data
+const mockProducts: Record<string, Product> = {
+  'p1': {
+    id: 'p1',
+    name: 'Example Gadget',
+    description: 'This is a wonderful gadget that does amazing things.',
+    price: 99.99,
+    imageUrl: '/path/to/gadget.jpg',
+  },
+  'p2': {
+    id: 'p2',
+    name: 'Another Item',
+    description: 'A different product with unique features.',
+    price: 49.50,
+    imageUrl: '/path/to/item.jpg',
+  },
+  'p3': {
+    id: 'p3',
+    name: 'Third Product',
+    description: 'This product is essential for your daily needs.',
+    price: 25.00,
+    imageUrl: '/path/to/third.jpg',
+  },
 };
 
-export const fetchAllProducts = async (): Promise<any[]> => {
-  console.log('Simulating API call to fetch all products');
-  return []; // Placeholder
+// Helper to simulate network delay
+const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Fetches a single product by its ID.
+ * @param productId The ID of the product to fetch.
+ * @returns A promise that resolves to a Product object.
+ * @throws Error if the product is not found.
+ */
+export const getProductById = async (productId: string): Promise<Product> => {
+  await simulateDelay(50); // Simulate network latency
+  console.log(`API: Fetching product with ID \${productId}`);
+  const product = mockProducts[productId];
+  if (!product) {
+    console.error(`API Error: Product with ID \${productId} not found.`);
+    throw new Error('Product not found');
+  }
+  return product;
 };

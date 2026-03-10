@@ -10,15 +10,20 @@ interface ReviewDisplayProps {
 const ReviewDisplay: React.FC<ReviewDisplayProps> = ({ reviews, averageRating }) => {
   // Helper to render stars
   const renderStars = (rating: number) => {
-    const filledStars = '★'.repeat(rating);
-    const emptyStars = '☆'.repeat(5 - rating);
+    // Ensure rating is within bounds for star rendering
+    const clampedRating = Math.max(0, Math.min(5, rating));
+    const filledStars = '★'.repeat(clampedRating);
+    const emptyStars = '☆'.repeat(5 - clampedRating);
     return (
-      <span className="stars">
+      <span className="stars" aria-label={`${rating} out of 5 stars`}>
         {filledStars}
         {emptyStars}
       </span>
     );
   };
+
+  // Calculate the average rating, ensuring it's a number and handling potential NaN/Infinity
+  const displayAverageRating = isNaN(averageRating) || !isFinite(averageRating) ? 0 : averageRating;
 
   return (
     <div className="review-display">
@@ -27,10 +32,10 @@ const ReviewDisplay: React.FC<ReviewDisplayProps> = ({ reviews, averageRating })
         <p>No reviews yet for this product.</p>
       ) : (
         <>
-          <div className="average-rating">
+          <div className="average-rating" data-testid="average-rating-section">
             <h4>Average Rating:</h4>
             <p>
-              {averageRating.toFixed(1)} / 5.0 {renderStars(Math.round(averageRating))}
+              {displayAverageRating.toFixed(1)} / 5.0 {renderStars(Math.round(displayAverageRating))}
             </p>
           </div>
 

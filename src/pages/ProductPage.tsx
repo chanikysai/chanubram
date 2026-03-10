@@ -8,25 +8,6 @@ import ReviewDisplay from '../components/ReviewDisplay'; // Adjust path as neede
 import { Product } from '../types/product'; // Assuming a Product type exists
 import { getProductById } from '../services/productApi'; // Assuming productApi.ts and Product type exist
 
-// Mock product data for demonstration
-const mockProduct: Product = {
-  id: 'p1',
-  name: 'Example Gadget',
-  description: 'This is a wonderful gadget that does amazing things.',
-  price: 99.99,
-  imageUrl: '/path/to/image.jpg',
-};
-
-// Mock product API function
-const fetchProduct = async (productId: string): Promise<Product> => {
-  console.log(`Fetching product details for \${productId}`);
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 50));
-  if (productId === 'p1') return mockProduct;
-  if (productId === 'p2') return { ...mockProduct, id: 'p2', name: 'Another Item', description: 'A different product.' };
-  throw new Error('Product not found');
-};
-
 const ProductPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>(); // Get productId from URL params
   const [product, setProduct] = useState<Product | null>(null);
@@ -45,7 +26,8 @@ const ProductPage: React.FC = () => {
     setError(null);
     setReviewError(null);
     try {
-      const fetchedProduct = await fetchProduct(id); // Use the mock fetchProduct
+      // Use the actual API call to fetch product details
+      const fetchedProduct = await getProductById(id);
       setProduct(fetchedProduct);
 
       const fetchedReviews = await getReviews(id);
@@ -79,7 +61,7 @@ const ProductPage: React.FC = () => {
       setReviews(updatedReviews);
       setAverageRating(calculateAverageRating(updatedReviews));
     } catch (err: any) {
-      setReviewError(err.message || 'Failed to submit review.');
+      setReviewError(err.message || 'An unexpected error occurred.');
       throw err; // Re-throw to be caught by ReviewForm's onError
     }
   };
@@ -93,7 +75,8 @@ const ProductPage: React.FC = () => {
   }
 
   if (!product) {
-    return <div>Product not found.</div>; // Should be caught by error state, but good fallback
+    // This case should ideally be covered by the error state, but good as a fallback
+    return <div>Product not found or an unknown error occurred.</div>;
   }
 
   return (

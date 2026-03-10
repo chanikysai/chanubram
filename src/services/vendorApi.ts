@@ -12,6 +12,21 @@ export interface Vendor {
   contactPerson: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  // Add other vendor properties as needed
+}
+
+// Interface for vendor application data that might be edited
+export interface VendorApplicationData {
+  businessName?: string;
+  email?: string;
+  phoneNumber?: string;
+  contactPerson?: string;
+}
+
+// Interface for admin approval/rejection payloads
+export interface AdminVendorActionPayload {
+  vendorId: string;
+  reason?: string; // For rejection
 }
 
 export interface ApiError {
@@ -34,12 +49,14 @@ export const registerVendor = async (
     if (!response.ok) {
       let errorData: ApiError = { message: 'An unknown error occurred' };
       try {
+        // Attempt to parse error response JSON for a more specific message
         errorData = await response.json();
       } catch (jsonError) {
-        // If response.json() fails, use a generic error message
         console.error('Failed to parse error response JSON:', jsonError);
+        // Fallback message if JSON parsing fails
+        errorData.message = 'Failed to register vendor due to an unknown server error.';
       }
-      throw new Error(errorData.message || 'Failed to register vendor');
+      throw new Error(errorData.message);
     }
 
     const vendor: Vendor = await response.json();
@@ -51,26 +68,52 @@ export const registerVendor = async (
   }
 };
 
-// Placeholder for other vendor-related API functions
-export const fetchVendorById = async (vendorId: string): Promise<Vendor> => {
-  const response = await fetch(`${API_BASE_URL}/vendors/${vendorId}`);
-  if (!response.ok) {
-    const errorData: ApiError = await response.json();
-    throw new Error(errorData.message || `Failed to fetch vendor ${vendorId}`);
+export const getCurrentVendor = async (): Promise<Vendor | null> => {
+  // In a real app, this would check auth tokens and fetch the logged-in vendor from an API endpoint
+  // This mock implementation assumes the existence of an endpoint like '/api/vendors/me'
+  try {
+    const response = await fetch(`${API_BASE_URL}/vendors/me`); // Assume this endpoint gets the current logged-in vendor
+    if (response.status === 404) {
+      return null; // No vendor logged in or found
+    }
+    if (!response.ok) {
+      const errorData: ApiError = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch current vendor');
+    }
+    const vendor: Vendor = await response.json();
+    return vendor;
+  } catch (error: any) {
+    console.error('Error fetching current vendor:', error);
+    throw error;
   }
-  return response.json();
 };
 
-export const getCurrentVendor = async (): Promise<Vendor | null> => {
-  // In a real app, this would check auth tokens and fetch the logged-in vendor
-  // For now, simulating no vendor logged in
-  const response = await fetch(`${API_BASE_URL}/vendors/me`); // Assume this endpoint gets the current logged-in vendor
-  if (response.status === 404) {
-    return null; // No vendor logged in or found
-  }
-  if (!response.ok) {
-    const errorData: ApiError = await response.json();
-    throw new Error(errorData.message || 'Failed to fetch current vendor');
-  }
-  return response.json();
+export const fetchVendorById = async (vendorId: string): Promise<Vendor> => {
+  // Placeholder for fetching a specific vendor by ID (e.g., for admin view)
+  console.warn('fetchVendorById is not fully implemented. This is a stub.');
+  throw new Error('fetchVendorById is not implemented.');
+};
+
+export const updateVendorApplication = async (
+  vendorId: string,
+  data: VendorApplicationData
+): Promise<Vendor> => {
+  // Placeholder for updating a vendor's application details
+  console.warn('updateVendorApplication is not fully implemented. This is a stub.');
+  throw new Error('updateVendorApplication is not implemented.');
+};
+
+// Admin functions (Backend/API simulation)
+export const approveVendor = async (vendorId: string): Promise<Vendor> => {
+  // Simulates an admin approving a vendor application via an API call
+  console.warn('approveVendor is not fully implemented. This is a stub.');
+  // In a real backend, this would update the vendor's status to 'approved'
+  throw new Error('approveVendor is not implemented.');
+};
+
+export const rejectVendor = async (vendorId: string, reason: string): Promise<Vendor> => {
+  // Simulates an admin rejecting a vendor application via an API call
+  console.warn('rejectVendor is not fully implemented. This is a stub.');
+  // In a real backend, this would update the vendor's status to 'rejected' and optionally store a reason
+  throw new Error('rejectVendor is not implemented.');
 };

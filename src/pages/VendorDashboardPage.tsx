@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import VendorRegistrationForm, { VendorRegistrationData } from '../components/VendorRegistrationForm';
-import { registerVendor, Vendor, ApiError, getCurrentVendor } from '../services/vendorApi'; // Import necessary functions and types
+import { registerVendor, Vendor, ApiError, getCurrentVendor, fetchVendorById, updateVendor } from '../services/vendorApi'; // Import necessary functions and types
 import { useNavigate } from 'react-router-dom'; // Assuming React Router for navigation
 
-// Mock the API call for getCurrentVendor to simulate logged-in state
+// Mock the API calls for demonstration purposes
 jest.mock('../services/vendorApi');
 // Mock react-router-dom hooks
 jest.mock('react-router-dom', () => ({
@@ -14,6 +14,8 @@ jest.mock('react-router-dom', () => ({
 // Cast mocks to their specific types
 const mockGetCurrentVendor = getCurrentVendor as jest.Mock;
 const mockRegisterVendor = registerVendor as jest.Mock;
+const mockFetchVendorById = fetchVendorById as jest.Mock; // For potential future use
+const mockUpdateVendor = updateVendor as jest.Mock; // For potential future use
 const mockUseNavigate = 'mockNavigate' as any; // Mock the useNavigate return value
 
 const VendorDashboardPage: React.FC = () => {
@@ -25,6 +27,8 @@ const VendorDashboardPage: React.FC = () => {
 
   useEffect(() => {
     const fetchVendorStatus = async () => {
+      setIsLoading(true); // Start loading when checking status
+      setError(null); // Clear any previous errors
       try {
         const fetchedVendor = await mockGetCurrentVendor(); // Use the mocked function
         if (fetchedVendor) {
@@ -37,6 +41,8 @@ const VendorDashboardPage: React.FC = () => {
         console.error('Error fetching vendor status:', err);
         setError(err.message || 'Failed to load dashboard status.');
         setIsVendorRegistered(false); // Assume not registered if error occurs
+      } finally {
+        setIsLoading(false); // Stop loading after checking status
       }
     };
     fetchVendorStatus();
@@ -50,7 +56,6 @@ const VendorDashboardPage: React.FC = () => {
       setVendorData(registeredVendor);
       setIsVendorRegistered(true);
       // Optionally navigate to a success page or the dashboard overview
-      // For now, we just update the state to show the welcome message.
       // navigate('/vendor/dashboard/success'); // Example navigation
     } catch (err: any) {
       // Check if the error is an ApiError object with a message
@@ -65,8 +70,15 @@ const VendorDashboardPage: React.FC = () => {
     }
   };
 
-  if (isLoading && !vendorData) { // Show loading only if we are fetching initial status and haven't loaded data
-    return <div>Loading dashboard status...</div>; // Or a spinner component
+  const handleEditApplication = (vendorId: string) => {
+    // Placeholder for editing application logic
+    console.log(`Editing application for vendor: ${vendorId}`);
+    // In a real app, this might navigate to a form pre-filled with current data
+    // navigate(`/vendor/edit/${vendorId}`);
+  };
+
+  if (isLoading) {
+    return <div>Loading dashboard...</div>; // Show loading indicator
   }
 
   return (
@@ -84,9 +96,28 @@ const VendorDashboardPage: React.FC = () => {
       ) : (
         <div>
           {vendorData && <h2>Welcome, {vendorData.businessName}!</h2>}
-          <p>Your vendor dashboard is ready.</p>
-          {/* Render other dashboard components here */}
-          {/* e.g., links to manage products, view orders, etc. */}
+          <p>Your application status: <span data-testid={`vendor-status-${vendorData.status}`}>{vendorData.status}</span></p>
+
+          {vendorData && vendorData.status === 'pending' && (
+            <p>Your application is currently under review. We will notify you once a decision is made.</p>
+          )}
+          {vendorData && vendorData.status === 'approved' && (
+            <div>
+              <p>Your vendor account has been approved. Welcome aboard!</p>
+              {/* Render dashboard features for approved vendors here */}
+              <p>You can now start listing products.</p>
+            </div>
+          )}
+          {vendorData && vendorData.status === 'rejected' && (
+            <div>
+              <p>We regret to inform you that your vendor application has been rejected.</p>
+              <p>Please contact support for more information or to reapply.</p>
+              {/* Example button to trigger an edit/reapply process */}
+              <button onClick={() => handleEditApplication(vendorData.id)} aria-label="Edit Application">
+                Edit Application
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
