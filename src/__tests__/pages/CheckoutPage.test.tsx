@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 
-import CheckoutPage from '../../src/pages/CheckoutPage';
+import CheckoutPage from '../pages/CheckoutPage';
 import { processPayment } from '../../services/paymentApi'; // Mock this
 import { ShippingAddress } from '../../src/components/CheckoutForm'; // Mock this
 import { PaymentDetails } from '../../src/components/PaymentForm'; // Mock this

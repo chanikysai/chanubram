@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import AdminProductsPage from '../pages/AdminProductsPage.tsx';
+import AdminProductsPage from '../../pages/AdminProductsPage.tsx';
 import * as adminProductApi from '../../services/adminProductApi';
 import { Product } from '../../types/product';
 
