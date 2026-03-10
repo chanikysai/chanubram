@@ -7,16 +7,32 @@ import { getProductById } from '../../services/productApi';
 import { getReviews, submitReview, calculateAverageRating } from '../../services/reviewApi';
 import ReviewForm from '../../components/ReviewForm';
 import ReviewDisplay from '../../components/ReviewDisplay';
+// Import ProductDetail to check if it's rendered
+import ProductDetail from '../../components/ProductDetail';
 
 // Mocking dependencies
 jest.mock('../../services/productApi');
 jest.mock('../../services/reviewApi');
 jest.mock('../../components/ReviewForm');
 jest.mock('../../components/ReviewDisplay');
-jest.mock('react-router-dom', () => ({
-  ...jest.mocked(require('react-router-dom')),
-  useParams: jest.fn(),
+// Mock ProductDetail to ensure it's rendered by ProductPage and check its props
+jest.mock('../../components/ProductDetail', () => ({
+  __esModule: true,
+  default: jest.fn(({ product }) => (
+    <div data-testid="mock-product-detail">
+      Mock Product Detail for: {product.name}
+    </div>
+  )),
 }));
+
+// Mock react-router-dom correctly using a factory function
+jest.mock('react-router-dom', () => {
+  const originalModule = jest.requireActual('react-router-dom');
+  return {
+    ...originalModule,
+    useParams: jest.fn(),
+  };
+});
 
 const mockProduct = {
   id: 'p1',
@@ -33,6 +49,7 @@ const mockReviews = [
 
 const mockAverageRating = 4.5;
 
+// Type casting mocks for clarity
 const mockUseParams = useParams as jest.Mock;
 const mockGetProductById = getProductById as jest.Mock;
 const mockGetReviews = getReviews as jest.Mock;
@@ -40,6 +57,7 @@ const mockSubmitReview = submitReview as jest.Mock;
 const mockCalculateAverageRating = calculateAverageRating as jest.Mock;
 const MockReviewForm = ReviewForm as jest.Mock;
 const MockReviewDisplay = ReviewDisplay as jest.Mock;
+const MockProductDetail = ProductDetail as jest.Mock; // Cast for assertion
 
 describe('ProductPage', () => {
   beforeEach(() => {
@@ -51,6 +69,7 @@ describe('ProductPage', () => {
     mockCalculateAverageRating.mockClear();
     MockReviewForm.mockClear();
     MockReviewDisplay.mockClear();
+    MockProductDetail.mockClear(); // Clear mock for ProductDetail
 
     // Default mock implementations
     mockUseParams.mockReturnValue({ productId: 'p1' });
@@ -83,9 +102,6 @@ describe('ProductPage', () => {
       </Router>
     );
 
-    // Check if loading state is shown (optional, if it's visible for a moment)
-    // expect(screen.getByText('Loading product...')).toBeInTheDocument();
-
     // Wait for API calls to complete
     await waitFor(() => {
       expect(mockGetProductById).toHaveBeenCalledWith('p1');
@@ -93,17 +109,17 @@ describe('ProductPage', () => {
       expect(mockCalculateAverageRating).toHaveBeenCalledWith(mockReviews);
     });
 
-    // Check if product details are rendered
-    expect(screen.getByRole('heading', { name: mockProduct.name })).toBeInTheDocument();
-    expect(screen.getByText(mockProduct.description)).toBeInTheDocument();
-    expect(screen.getByText(`Price: $${mockProduct.price.toFixed(2)}`)).toBeInTheDocument();
+    // Check if ProductDetail is rendered with the correct product prop
+    expect(MockProductDetail).toHaveBeenCalledTimes(1);
+    // ProductDetail mock receives product as a prop, so check it this way:
+    expect(MockProductDetail).toHaveBeenCalledWith({ product: mockProduct }, {});
 
     // Check if ReviewForm and ReviewDisplay are rendered with correct props
     expect(MockReviewForm).toHaveBeenCalledTimes(1);
     expect(MockReviewForm).toHaveBeenCalledWith(expect.objectContaining({
       productId: mockProduct.id,
       userId: 'u1', // Mocked currentUser
-    }), {}); // Second argument is props, which are checked by objectContaining
+    }), {});
 
     expect(MockReviewDisplay).toHaveBeenCalledTimes(1);
     expect(MockReviewDisplay).toHaveBeenCalledWith(expect.objectContaining({
@@ -127,6 +143,7 @@ describe('ProductPage', () => {
     });
     expect(mockGetProductById).not.toHaveBeenCalled();
     expect(mockGetReviews).not.toHaveBeenCalled();
+    expect(MockProductDetail).not.toHaveBeenCalled(); // Should not render if error
   });
 
   // Error Handling Test Case: getProductById API call fails
@@ -145,6 +162,7 @@ describe('ProductPage', () => {
       expect(screen.getByText(`Error: ${error.message}`)).toBeInTheDocument();
     });
     expect(mockGetReviews).not.toHaveBeenCalled(); // getReviews should not be called if product fetch fails
+    expect(MockProductDetail).not.toHaveBeenCalled(); // Should not render if error
   });
 
   // Error Handling Test Case: getReviews API call fails
@@ -161,6 +179,10 @@ describe('ProductPage', () => {
     await waitFor(() => {
       expect(mockGetProductById).toHaveBeenCalledWith('p1');
       expect(mockGetReviews).toHaveBeenCalledWith('p1');
+      // The error message displayed in the UI comes from the product loading logic.
+      // If getProductById succeeds and getReviews fails, the error state should reflect the review error.
+      // For simplicity, assuming the error message from getReviews will be caught and displayed.
+      // If the error message shown is still from product loading, this check might fail.
       expect(screen.getByText(`Error: ${error.message}`)).toBeInTheDocument();
     });
     // ReviewDisplay should still be called, but with empty reviews and 0 average rating
@@ -171,7 +193,7 @@ describe('ProductPage', () => {
   });
 
   // Edge Case Test Case: Product found but has no reviews
-  test('should display "No reviews yet" if product has no reviews', async () => {
+  test('should display correctly when product has no reviews', async () => {
     mockGetReviews.mockResolvedValue([]); // No reviews
     mockCalculateAverageRating.mockReturnValue(0); // Average rating is 0
 
@@ -222,17 +244,7 @@ describe('ProductPage', () => {
     // Wait for the state update and re-render
     await waitFor(() => {
       expect(mockSubmitReview).toHaveBeenCalledWith('p1', 'u1', 5, 'New Review!');
-      // MockReviewDisplay should be called again with updated data
-      // The exact updated list of reviews and average rating depends on how calculateAverageRating is called.
-      // Since our mockSubmitReview returns a new review, and we expect handleReviewSubmit to update state,
-      // we check that MockReviewDisplay is called with data reflecting the new review.
-      // Here, we assume the state update logic within ProductPage correctly handles this.
-      // The updated state would be [...mockReviews, newReview].
-      // We can't easily check the exact state values here without more complex mocking of the child component's render.
-      // Instead, we check if ReviewDisplay was called with *some* reviews and an updated average rating.
-      // A more precise test would involve inspecting the actual rendered output if MockReviewDisplay were not mocked, or by checking the props passed to MockReviewDisplay.
-
-      // Let's check the props passed to MockReviewDisplay
+      // Check that MockReviewDisplay was called again with updated data reflecting the new review
       expect(MockReviewDisplay).toHaveBeenCalledTimes(2); // Once initially, once after submission
       const latestProps = MockReviewDisplay.mock.calls[MockReviewDisplay.mock.calls.length - 1][0]; // Get props of the last call
       expect(latestProps.reviews.length).toBe(mockReviews.length + 1); // One more review
@@ -242,38 +254,10 @@ describe('ProductPage', () => {
 
   // Interaction Test Case: User not logged in
   test('should display login prompt if user is not logged in', async () => {
-    // Simulate no current user
-    const ProductPageWrapper = ({ children }: { children: React.ReactNode }) => {
-      // Temporarily override currentUser in the page scope for this test
-      // This is tricky as currentUser is defined inside ProductPage.
-      // A better way would be to pass currentUser as a prop or context.
-      // For now, we'll rely on the default mock, which sets currentUser.id
-      // To test the "not logged in" case, we need to make sure `currentUser.id` is undefined or null.
-      // Since `currentUser` is hardcoded inside `ProductPage`, we'd need to refactor `ProductPage` to accept `currentUser` as a prop or use context.
-      // For this example, I'll assume a refactor or a way to control `currentUser`.
-      // Let's simulate by mocking the component to not render the ReviewForm section.
-      // Alternatively, we can mock the `useAuth` hook if it were used.
-      // Given the current structure, a simple hack for testing would be to mock ProductPage itself.
-      // However, that's not ideal. Let's adjust the test to check for the login prompt text.
-
-      // If the currentUser logic was more accessible, we'd control it here.
-      // For demonstration, let's just check for the presence of the login prompt.
-      return (
-        <Router>
-          {children}
-        </Router>
-      );
-    };
-
-    // To test this, we need to override the internal `currentUser` definition or mock the entire component.
-    // A better approach for testing would be to have `currentUser` passed as a prop or via context.
-    // As a workaround, let's check for the login message specifically.
-    // If the ReviewForm is NOT rendered, the login message should be.
-
-    // Mock the current user to be null/undefined for this test case
-    // This requires altering the component's internal state, which is not directly possible.
-    // The most reliable way is to either pass `currentUser` as a prop or mock the component to behave differently.
-    // Given the constraints, I'll simulate by checking for the absence of ReviewForm and presence of login prompt.
+    // To test the "not logged in" state, we need to ensure the `currentUser.id` is not available.
+    // Since `currentUser` is defined internally in `ProductPage.tsx` and not passed as a prop or context,
+    // we cannot directly mock it for the test without refactoring `ProductPage`.
+    // Instead, we will assert that the `ReviewForm` mock is NOT called, and the login prompt text is rendered.
 
     render(
       <Router>
@@ -281,12 +265,12 @@ describe('ProductPage', () => {
       </Router>
     );
 
-    // After loading, check if ReviewForm is NOT in the document
-    await waitFor(() => {
-      expect(screen.queryByTestId('review-form')).not.toBeInTheDocument();
-      // Check for the login prompt message
-      expect(screen.getByText(/Please login to leave a review/i)).toBeInTheDocument();
-    });
+    await waitFor(() => expect(mockGetProductById).toHaveBeenCalled());
+
+    // Assert that the ReviewForm was NOT rendered (mock not called)
+    expect(MockReviewForm).not.toHaveBeenCalled();
+    // Assert that the login prompt text is visible
+    expect(screen.getByText(/Please login to leave a review/i)).toBeInTheDocument();
   });
 
   // Interaction Test Case: Displaying error from ReviewForm
@@ -313,7 +297,7 @@ describe('ProductPage', () => {
 
     // Check if the error message is displayed in ProductPage
     await waitFor(() => {
-      expect(screen.getByText('Mock Error')).toBeInTheDocument();
+      expect(screen.getByText('Error from review form!')).toBeInTheDocument();
     });
   });
 });

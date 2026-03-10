@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'; // Assuming react-router-dom is 
 
 import CheckoutForm, { ShippingAddress } from '../components/CheckoutForm';
 import PaymentForm, { PaymentDetails } from '../components/PaymentForm';
+import CouponInput from '../components/CouponInput'; // Import the CouponInput component
 import { processPayment } from '../services/paymentApi'; // Import the payment service
 
 // Define types for order and product in cart
@@ -20,6 +21,7 @@ interface OrderSummary {
   shippingCost: number;
   tax: number;
   total: number;
+  discount?: number; // Add discount to OrderSummary
 }
 
 // Mock cart data - in a real app, this would come from context or state management
@@ -32,6 +34,7 @@ const mockCart: OrderSummary = {
   shippingCost: 5.00,
   tax: 7.16, // Example tax calculation (e.g., 8% of subtotal + shipping)
   total: 101.65,
+  discount: 0, // Initialize discount to 0
 };
 
 enum CheckoutStep {
@@ -46,16 +49,81 @@ const CheckoutPage: React.FC = () => {
   const [shippingData, setShippingData] = useState<ShippingAddress | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentDetails | null>(null);
   const [orderSummary, setOrderSummary] = useState<OrderSummary>(mockCart); // Use mock cart data
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [isCouponLoading, setIsCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccessMessage, setCouponSuccessMessage] = useState<string | null>(null);
+
+  const [isLoading, setIsLoading] = useState<boolean>(false); // Payment loading state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
 
   const navigate = useNavigate(); // Hook for navigation
 
+  // Function to calculate total based on current orderSummary state
+  const calculateTotal = (summary: OrderSummary): number => {
+    const { subtotal, shippingCost, tax, discount = 0 } = summary;
+    return subtotal + shippingCost + tax - discount;
+  };
+
+  // Update total whenever orderSummary changes
+  useEffect(() => {
+    setOrderSummary(prevSummary => ({
+      ...prevSummary,
+      total: calculateTotal(prevSummary),
+    }));
+  }, [orderSummary.subtotal, orderSummary.shippingCost, orderSummary.tax, orderSummary.discount]); // Recalculate when these change
+
   const handleShippingSubmit = (data: ShippingAddress) => {
     setShippingData(data);
-    setErrorMessage(null); // Clear errors
-    setCurrentStep(CheckoutStep.Payment);
+    setErrorMessage(null); // Clear payment errors
+    setCouponError(null); // Clear coupon errors
+    setCouponSuccessMessage(null); // Clear coupon success message
+    setCurrentStep(CheckoutStep.Review); // Move to Review step to apply coupon
+  };
+
+  // Handle applying coupon
+  const handleApplyCoupon = async (code: string) => {
+    setIsCouponLoading(true);
+    setCouponError(null);
+    setCouponSuccessMessage(null);
+
+    // Mock API call to validate coupon
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+
+      // Mock validation logic: only "DISCOUNT10" and "SAVE20" are valid
+      let discountAmount = 0;
+      if (code === 'DISCOUNT10') {
+        discountAmount = orderSummary.subtotal * 0.10; // 10% of subtotal
+        setCouponSuccessMessage('Coupon DISCOUNT10 applied!');
+      } else if (code === 'SAVE20') {
+        discountAmount = 20.00; // Flat $20 off
+        setCouponSuccessMessage('Coupon SAVE20 applied!');
+      } else {
+        throw new Error('Invalid coupon code.');
+      }
+
+      // Update order summary with discount
+      setOrderSummary(prevSummary => ({
+        ...prevSummary,
+        discount: discountAmount,
+        total: calculateTotal({ ...prevSummary, discount: discountAmount }), // Recalculate total
+      }));
+
+    } catch (error: any) {
+      console.error("Coupon application failed:", error);
+      setCouponError(error.message || 'Failed to apply coupon.');
+      setOrderSummary(prevSummary => ({ // Reset discount if coupon is invalid
+        ...prevSummary,
+        discount: 0,
+        total: calculateTotal({ ...prevSummary, discount: 0 }),
+      }));
+    } finally {
+      setIsCouponLoading(false);
+    }
   };
 
   const handlePaymentSubmit = async (data: PaymentDetails) => {
@@ -69,7 +137,8 @@ const CheckoutPage: React.FC = () => {
         throw new Error('Shipping information is missing.');
       }
       
-      const response = await processPayment(data, shippingData);
+      // Pass the final order summary with applied discount to the payment API
+      const response = await processPayment(data, shippingData, orderSummary);
 
       if (response.success) {
         setTransactionId(response.transactionId);
@@ -78,25 +147,23 @@ const CheckoutPage: React.FC = () => {
         // clearCart(); 
       } else {
         setErrorMessage(response.message);
-        setCurrentStep(CheckoutStep.Payment); // Stay on payment step if there's an error
+        setCurrentStep(CheckoutStep.Review); // Stay on review step if there's an error
       }
     } catch (error) {
       console.error("Payment processing failed:", error);
       setErrorMessage('An unexpected error occurred during payment processing.');
-      setCurrentStep(CheckoutStep.Payment); // Stay on payment step
+      setCurrentStep(CheckoutStep.Review); // Stay on review step
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleReviewSubmit = () => {
-    // In a real app, this might involve a final confirmation API call
-    // For now, we directly move to processing payment after review
+    // Move to payment processing step
     if (paymentData) { // Ensure payment data is set
       handlePaymentSubmit(paymentData);
     } else {
-      setErrorMessage("Payment details are missing. Please go back and complete them.");
-      setCurrentStep(CheckoutStep.Payment);
+      setCurrentStep(CheckoutStep.Payment); // Go back to payment if not set
     }
   };
 
@@ -108,11 +175,25 @@ const CheckoutPage: React.FC = () => {
     switch (currentStep) {
       case CheckoutStep.Shipping:
         return (
-          <CheckoutForm 
-            onSubmit={handleShippingSubmit} 
-            isLoading={isLoading} 
-            onError={setErrorMessage} 
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <CheckoutForm 
+              onSubmit={handleShippingSubmit} 
+              isLoading={isLoading} 
+              onError={setErrorMessage} 
+            />
+            {/* Render CouponInput in Shipping step */}
+            <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #e0e0e0', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
+              <h4>Have a coupon?</h4>
+              <CouponInput 
+                onApplyCoupon={handleApplyCoupon} 
+                isLoading={isCouponLoading} 
+                error={couponError} 
+                successMessage={couponSuccessMessage}
+              />
+              {couponError && <p className="coupon-error" style={{ color: 'red', fontSize: '0.9em', marginTop: '5px' }}>{couponError}</p>}
+              {couponSuccessMessage && <p className="coupon-success" style={{ color: 'green', fontSize: '0.9em', marginTop: '5px' }}>{couponSuccessMessage}</p>}
+            </div>
+          </div>
         );
       case CheckoutStep.Payment:
         return (
@@ -124,22 +205,40 @@ const CheckoutPage: React.FC = () => {
           />
         );
       case CheckoutStep.Review:
-        // This step would display a summary of shipping and payment, and order items
-        // For simplicity, we'll skip a dedicated review step and go directly to payment confirmation
-        // or integrate a summary display before payment submission.
-        // For now, let's assume submission from PaymentForm triggers the finalization.
-        // If a review step is needed:
         return (
           <div style={{ maxWidth: '600px', margin: '20px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
             <h2>Order Summary</h2>
-            {/* Display order items, shipping address, payment method */}
-            <p>Items: {orderSummary.items.reduce((acc, item) => acc + item.quantity, 0)}</p>
+            
+            {/* Render CouponInput in Review step */}
+            <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #e0e0e0', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
+              <h4>Have a coupon?</h4>
+              <CouponInput 
+                onApplyCoupon={handleApplyCoupon} 
+                isLoading={isCouponLoading} 
+                error={couponError} 
+                successMessage={couponSuccessMessage}
+              />
+              {couponError && <p className="coupon-error" style={{ color: 'red', fontSize: '0.9em', marginTop: '5px' }}>{couponError}</p>}
+              {couponSuccessMessage && <p className="coupon-success" style={{ color: 'green', fontSize: '0.9em', marginTop: '5px' }}>{couponSuccessMessage}</p>}
+            </div>
+
+            <div style={{ borderTop: '1px solid #eee', paddingTop: '15px', marginBottom: '15px' }}>
+              <h3>Items:</h3>
+              {orderSummary.items.map(item => (
+                <p key={item.id}>
+                  {item.name} x {item.quantity} - ${(item.price * item.quantity).toFixed(2)}
+                </p>
+              ))}
+            </div>
             <p>Subtotal: ${orderSummary.subtotal.toFixed(2)}</p>
             <p>Shipping: ${orderSummary.shippingCost.toFixed(2)}</p>
             <p>Tax: ${orderSummary.tax.toFixed(2)}</p>
-            <p><strong>Total: ${orderSummary.total.toFixed(2)}</strong></p>
+            {orderSummary.discount !== undefined && orderSummary.discount > 0 && (
+              <p style={{ color: 'green' }}>Discount: -${orderSummary.discount.toFixed(2)}</p>
+            )}
+            <p style={{ fontWeight: 'bold', fontSize: '1.1em' }}>Total: ${orderSummary.total.toFixed(2)}</p>
             
-            <h3>Shipping To:</h3>
+            <h3 style={{ marginTop: '20px' }}>Shipping To:</h3>
             {shippingData && (
               <p>
                 {shippingData.fullName}<br />
@@ -150,13 +249,13 @@ const CheckoutPage: React.FC = () => {
               </p>
             )}
 
-            <h3>Payment Method:</h3>
+            <h3 style={{ marginTop: '20px' }}>Payment Method:</h3>
             {paymentData && <p>{paymentData.paymentMethod === 'creditCard' ? 'Credit Card' : 'PayPal'}</p>}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-              <button onClick={() => handleBack(CheckoutStep.Shipping)} disabled={isLoading} style={{ padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back to Shipping</button>
-              <button onClick={() => handleBack(CheckoutStep.Payment)} disabled={isLoading} style={{ padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back to Payment</button>
-              <button onClick={handleReviewSubmit} disabled={isLoading} style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              <button onClick={() => handleBack(CheckoutStep.Shipping)} disabled={isLoading || isCouponLoading} style={{ padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back to Shipping</button>
+              <button onClick={() => handleBack(CheckoutStep.Payment)} disabled={isLoading || isCouponLoading} style={{ padding: '10px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back to Payment</button>
+              <button onClick={handleReviewSubmit} disabled={isLoading || isCouponLoading} style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                 {isLoading ? 'Processing...' : 'Place Order'}
               </button>
             </div>

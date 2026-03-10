@@ -1,8 +1,9 @@
+// src/admin/pages/AdminProductsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 import * as adminProductApi from '../services/adminProductApi';
 import ProductForm from '../components/ProductForm';
-import ProductTable from './ProductTable';
+import ProductTable from '../components/ProductTable';
 
 const AdminProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);

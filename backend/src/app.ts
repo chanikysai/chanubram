@@ -1,8 +1,8 @@
-// backend/src/app.ts (example of integrating vendor routes)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv'; // Import dotenv to load environment variables
 import vendorRoutes from './routes/vendorRoutes';
+import couponRoutes from './routes/couponRoutes'; // Import coupon routes
 import pool from './db'; // Import pool to ensure DB connection is checked on startup
 
 // Load environment variables from .env file
@@ -17,6 +17,7 @@ app.use(express.json()); // Parse JSON bodies
 
 // API Routes
 app.use('/api/vendors', vendorRoutes); // Mount vendor routes under /api/vendors
+app.use('/api/coupons', couponRoutes); // Mount coupon routes under /api/coupons
 
 // Basic health check endpoint
 app.get('/health', (req, res) => {

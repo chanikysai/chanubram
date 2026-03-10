@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import './App.css'; // Assuming basic CSS
 import './styles.css'; // Import shared styles
 import { Routes, Route, Link, useNavigate } from 'react-router-dom'; // Import necessary components
-import VendorRegistrationPage from './pages/VendorRegistrationPage'; // Import the vendor registration page
-import VendorDashboardPage from './pages/VendorDashboardPage'; // Import the vendor dashboard page
-import VendorPayoutsPage from './pages/VendorPayoutsPage'; // Import the Vendor Payouts Page
+// Import LoadingSpinner component
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load page components
+const HomePage = lazy(() => import('./pages/HomePage'));
+const VendorRegistrationPage = lazy(() => import('./pages/VendorRegistrationPage'));
+const VendorDashboardPage = lazy(() => import('./pages/VendorDashboardPage'));
+const VendorPayoutsPage = lazy(() => import('./pages/VendorPayoutsPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage')); // Assuming a general registration page exists
 
 function App() {
   const navigate = useNavigate();
@@ -35,21 +42,39 @@ function App() {
       </header>
 
       <main style={{ padding: '20px' }}>
-        {/* Define routes here */}
+        {/* Define routes here, wrapped in Suspense */}
         <Routes>
           <Route path="/" element={
-            <div>
-              <h2>Welcome to Chanubram</h2>
-              <p>Your platform for connecting with vendors and products.</p>
-              <button onClick={handleRegisterClick}>Become a Vendor</button>
-              {/* Add more content for the home page */}
-            </div>
+            <Suspense fallback={<LoadingSpinner />}>
+              <HomePage />
+            </Suspense>
           } />
-          <Route path="/register-vendor" element={<VendorRegistrationPage />} />
-          <Route path="/vendor/dashboard" element={<VendorDashboardPage />} />
-          {/* Add the route for Vendor Payouts Page */}
-          <Route path="/admin/payouts" element={<VendorPayoutsPage />} />
-          {/* Add other routes like /login, /register, /products, etc. */}
+          <Route path="/register-vendor" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <VendorRegistrationPage />
+            </Suspense>
+          } />
+          <Route path="/vendor/dashboard" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <VendorDashboardPage />
+            </Suspense>
+          } />
+          <Route path="/admin/payouts" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <VendorPayoutsPage />
+            </Suspense>
+          } />
+          {/* Add other routes for login and general registration */}
+          <Route path="/login" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <LoginPage />
+            </Suspense>
+          } />
+          <Route path="/register" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <RegisterPage />
+            </Suspense>
+          } />
         </Routes>
       </main>
 
