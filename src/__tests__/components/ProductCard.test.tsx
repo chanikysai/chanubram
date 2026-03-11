@@ -1,108 +1,102 @@
+// src/__tests__/components/ProductCard.test.tsx
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ProductCard from './ProductCard';
-import { CartProvider, useCart } from '../context/CartContext'; // Assuming CartContext is in ../context/
+import ProductCard from '../components/ProductCard'; // Adjust path based on your project structure
 
-// Mock the useCart hook
-jest.mock('../context/CartContext', () => ({
-  ...jest.requireActual('../context/CartContext'),
-  useCart: jest.fn(),
-}));
-
-const mockUseCart = useCart as jest.Mock;
-
-// Mock the Product type if it's not globally available or defined in a shared types file
-// For this test, we assume Product has id, name, price
+// Mock Product type based on the one used in productApi.ts
 interface Product {
   id: string;
   name: string;
+  description: string;
   price: number;
+  imageUrl: string;
+  inventory: number;
 }
 
+const mockProduct: Product = {
+  id: 'prod_1',
+  name: 'Stylish T-Shirt',
+  description: 'A comfortable and stylish t-shirt made from 100% cotton.',
+  price: 25.00,
+  imageUrl: '/images/product1.jpg',
+  inventory: 50,
+};
+
+const mockProductWithoutImage: Product = {
+  id: 'prod_2',
+  name: 'Comfortable Jeans',
+  description: 'Durable and soft denim jeans for everyday wear.',
+  price: 50.50,
+  imageUrl: '', // Empty image URL to test placeholder
+  inventory: 30,
+};
+
+const mockProductWithLowInventory: Product = {
+  id: 'prod_3',
+  name: 'Classic Sneakers',
+  description: 'Timeless sneakers perfect for any casual outfit.',
+  price: 75.00,
+  imageUrl: '/images/product3.jpg',
+  inventory: 5, // Low stock
+};
+
+
 describe('ProductCard', () => {
-  const mockProduct: Product = {
-    id: 'prod-card-1',
-    name: 'Test Product Card',
-    price: 50.00,
-  };
+  // Happy Path Test: Renders product details correctly
+  test('renders product name, price, and image', () => {
+    render(<ProductCard product={mockProduct} onClick={() => {}} />);
 
-  beforeEach(() => {
-    // Reset mocks before each test
-    mockUseCart.mockClear();
+    expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument();
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    const imgElement = screen.getByAltText('Stylish T-Shirt');
+    expect(imgElement).toBeInTheDocument();
+    expect(imgElement).toHaveAttribute('src', '/images/product1.jpg');
   });
 
-  // Test 1: Render product details correctly (happy path)
-  test('should render product name and price', () => {
-    // Mock the context to return the addItem function
-    mockUseCart.mockReturnValue({
-      addItem: jest.fn(),
-    });
+  // Edge Case Test: Renders with a placeholder image if imageUrl is missing
+  test('renders with a placeholder image if imageUrl is empty', () => {
+    render(<ProductCard product={mockProductWithoutImage} onClick={() => {}} />);
 
-    render(
-      <CartProvider> {/* CartProvider is needed for context value propagation */}
-        <ProductCard product={mockProduct} />
-      </CartProvider>
-    );
-
-    expect(screen.getByText('Test Product Card')).toBeInTheDocument();
-    expect(screen.getByText('$50.00')).toBeInTheDocument();
+    expect(screen.getByText('Comfortable Jeans')).toBeInTheDocument();
+    expect(screen.getByText('$50.50')).toBeInTheDocument();
+    const imgElement = screen.getByAltText('Comfortable Jeans');
+    expect(imgElement).toBeInTheDocument();
+    expect(imgElement).toHaveAttribute('src', 'https://via.placeholder.com/150');
   });
 
-  // Test 2: Call addItem when "Add to Cart" button is clicked (happy path)
-  test('should call addItem from context with product details when "Add to Cart" is clicked', () => {
-    const mockAddItem = jest.fn();
-    mockUseCart.mockReturnValue({
-      addItem: mockAddItem,
-    });
+  // Edge Case Test: Click handler is called with the correct product ID
+  test('calls onClick handler with product id when clicked', () => {
+    const handleClick = jest.fn();
+    render(<ProductCard product={mockProduct} onClick={handleClick} />);
 
-    render(
-      <CartProvider>
-        <ProductCard product={mockProduct} />
-      </CartProvider>
-    );
+    // Find the closest element that represents the card and is clickable
+    const cardElement = screen.getByText('Stylish T-Shirt').closest('.product-card');
+    expect(cardElement).toBeInTheDocument();
+    fireEvent.click(cardElement!);
 
-    const addButton = screen.getByText('Add to Cart');
-    fireEvent.click(addButton);
-
-    expect(mockAddItem).toHaveBeenCalledTimes(1);
-    // Expect it to be called with the full product object as passed in ProductCard.tsx
-    expect(mockAddItem).toHaveBeenCalledWith(mockProduct);
+    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(handleClick).toHaveBeenCalledWith('prod_1');
   });
 
-  // Test 3: Ensure the button click triggers the correct action (interaction)
-  // This is implicitly covered by Test 2, as we check if mockAddItem was called.
-  // If we were testing end-to-end state change, we'd check CartContext state.
-  // Here, we confirm the component correctly invokes the context function.
+  // Test for accessibility: keyboard interaction
+  test('allows interaction via keyboard (Enter key)', () => {
+    const handleClick = jest.fn();
+    render(<ProductCard product={mockProduct} onClick={handleClick} />);
 
-  // Test 4: Handle potential errors if context is not provided (error handling)
-  // This is more for testing the hook itself, but can be applied here by rendering without a provider.
-  test('should throw an error if used outside of CartProvider', () => {
-    // Mock useCart to return undefined, simulating it being used outside a provider
-    mockUseCart.mockReturnValue(undefined);
+    const cardElement = screen.getByText('Stylish T-Shirt').closest('.product-card');
+    expect(cardElement).toBeInTheDocument();
 
-    // We expect an error when the component tries to use the hook's return value
-    // The error originates from the useCart hook itself, which will be tested separately.
-    // This test mainly confirms that ProductCard relies on the hook and will fail if it's missing.
-    // A more direct test would be for the useCart hook throwing the error.
-    // For ProductCard, we assume useCart will return a valid value from the mock.
-    // So, this test isn't strictly necessary here given the mock setup but is a good thought.
-    // Instead, let's ensure the mock returns something valid.
+    // Simulate pressing Enter key on the focused element
+    fireEvent.keyDown(cardElement!, { key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13 });
+
+    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(handleClick).toHaveBeenCalledWith('prod_1');
   });
 
-  // Test 5: Ensure context is correctly passed if CartProvider is used
-  test('should use context provided by CartProvider', () => {
-    const mockAddItem = jest.fn();
-    mockUseCart.mockReturnValue({
-      addItem: mockAddItem,
-    });
-
-    render(
-      <CartProvider> {/* Explicitly use CartProvider */}
-        <ProductCard product={mockProduct} />
-      </CartProvider>
-    );
-
-    // Check if the hook was used, implying context was accessible
-    expect(mockUseCart).toHaveBeenCalled();
-  });
+  // Optional: Test for rendering low inventory status if that feature is added to ProductCard
+  // test('displays low inventory status if inventory is low', () => {
+  //   render(<ProductCard product={mockProductWithLowInventory} onClick={() => {}} />);
+  //   // Assuming a paragraph with text like 'Low Stock' or similar is rendered
+  //   // expect(screen.getByText(/low stock/i)).toBeInTheDocument();
+  // });
 });

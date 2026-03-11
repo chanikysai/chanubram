@@ -68,6 +68,16 @@ websocketManager.on('inventoryUpdate', (data: { productId: string, newInventory:
 // If we needed to explicitly ensure connection here for service usage:
 // websocketManager.connect(); // This is called in the constructor, so not strictly needed here again.
 
+// Fetch a list of all products
+export const getProducts = async (): Promise<Product[]> => {
+  console.log('Mock API: Fetching all products');
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  // Return a copy to prevent direct mutation of the mock data
+  return [...mockProducts];
+};
+
+
 export const getProductById = async (id: string): Promise<Product> => {
   console.log(`Mock API: Fetching product with ID ${id}`);
   // Simulate network delay
@@ -78,7 +88,7 @@ export const getProductById = async (id: string): Promise<Product> => {
     throw new Error(`Product with ID ${id} not found.`);
   }
   // Return product with its current inventory (could be updated by WebSocket)
-  return product;
+  return { ...product }; // Return a copy
 };
 
 // Helper function to simulate decreasing inventory for testing purposes (e.g., when an order is placed)

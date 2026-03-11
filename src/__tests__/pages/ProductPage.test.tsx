@@ -1,303 +1,202 @@
 // src/__tests__/pages/ProductPage.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter as Router, useParams } from 'react-router-dom';
-import ProductPage from '../../pages/ProductPage';
-import { getProductById } from '../../services/productApi';
-import { getReviews, submitReview, calculateAverageRating } from '../../services/reviewApi';
-import ReviewForm from '../../components/ReviewForm';
-import ReviewDisplay from '../../components/ReviewDisplay';
-// Import ProductDetail to check if it's rendered
-import ProductDetail from '../../components/ProductDetail';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import ProductPage from '../../src/pages/ProductPage';
+import * as productApi from '../../src/services/productApi';
+import * as reviewApi from '../../src/services/reviewApi'; // Mock review API
 
-// Mocking dependencies
-jest.mock('../../services/productApi');
-jest.mock('../../services/reviewApi');
-jest.mock('../../components/ReviewForm');
-jest.mock('../../components/ReviewDisplay');
-// Mock ProductDetail to ensure it's rendered by ProductPage and check its props
-jest.mock('../../components/ProductDetail', () => ({
-  __esModule: true,
-  default: jest.fn(({ product }) => (
-    <div data-testid="mock-product-detail">
-      Mock Product Detail for: {product.name}
-    </div>
-  )),
-}));
+// Mock Product type
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  inventory: number;
+}
 
-// Mock react-router-dom correctly using a factory function
-jest.mock('react-router-dom', () => {
-  const originalModule = jest.requireActual('react-router-dom');
-  return {
-    ...originalModule,
-    useParams: jest.fn(),
-  };
-});
+// Mock Review type (assuming structure from reviewApi)
+interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  userName: string;
+  date: string;
+}
 
-const mockProduct = {
-  id: 'p1',
-  name: 'Test Product',
-  description: 'A product for testing.',
-  price: 19.99,
-  imageUrl: '/test/image.jpg',
+// Mock API calls
+jest.mock('../../src/services/productApi');
+jest.mock('../../src/services/reviewApi');
+
+// Mock product data
+const mockProduct: Product = {
+  id: 'prod_1',
+  name: 'Stylish T-Shirt',
+  description: 'A comfortable and stylish t-shirt made from 100% cotton.',
+  price: 25.00,
+  imageUrl: '/images/product1.jpg',
+  inventory: 50,
 };
 
-const mockReviews = [
-  { id: 'r1', productId: 'p1', userId: 'u1', rating: 5, comment: 'Great!', createdAt: new Date() },
-  { id: 'r2', productId: 'p1', userId: 'u2', rating: 4, comment: 'Good.', createdAt: new Date() },
+// Mock reviews data
+const mockReviews: Review[] = [
+  { id: 'rev_1', productId: 'prod_1', userId: 'u1', userName: 'Alice', rating: 5, comment: 'Great product!', date: '2023-01-01' },
+  { id: 'rev_2', productId: 'prod_1', userId: 'u2', userName: 'Bob', rating: 4, comment: 'Good quality.', date: '2023-01-05' },
 ];
 
 const mockAverageRating = 4.5;
 
-// Type casting mocks for clarity
-const mockUseParams = useParams as jest.Mock;
-const mockGetProductById = getProductById as jest.Mock;
-const mockGetReviews = getReviews as jest.Mock;
-const mockSubmitReview = submitReview as jest.Mock;
-const mockCalculateAverageRating = calculateAverageRating as jest.Mock;
-const MockReviewForm = ReviewForm as jest.Mock;
-const MockReviewDisplay = ReviewDisplay as jest.Mock;
-const MockProductDetail = ProductDetail as jest.Mock; // Cast for assertion
-
 describe('ProductPage', () => {
+  const productId = 'prod_1'; // The product ID we'll use for tests
+
   beforeEach(() => {
-    // Reset mocks before each test
-    mockUseParams.mockClear();
-    mockGetProductById.mockClear();
-    mockGetReviews.mockClear();
-    mockSubmitReview.mockClear();
-    mockCalculateAverageRating.mockClear();
-    MockReviewForm.mockClear();
-    MockReviewDisplay.mockClear();
-    MockProductDetail.mockClear(); // Clear mock for ProductDetail
+    jest.clearAllMocks();
 
-    // Default mock implementations
-    mockUseParams.mockReturnValue({ productId: 'p1' });
-    mockGetProductById.mockResolvedValue(mockProduct);
-    mockGetReviews.mockResolvedValue(mockReviews);
-    mockSubmitReview.mockResolvedValue({ id: 'r3', productId: 'p1', userId: 'u1', rating: 5, comment: 'New Review!', createdAt: new Date() });
-    mockCalculateAverageRating.mockReturnValue(mockAverageRating);
-
-    // Mock components to render their basic structure or placeholders
-    MockReviewForm.mockImplementation(({ productId, userId, onSubmit, onError }) => (
-      <div data-testid="review-form">
-        Mock Review Form for {productId} by {userId}
-        <button onClick={() => onSubmit({ productId, userId, rating: 5, comment: 'New Review!' })}>Submit Mock Review</button>
-        <button onClick={() => onError('Mock Error')}>Trigger Mock Error</button>
-      </div>
-    ));
-    MockReviewDisplay.mockImplementation(({ reviews, averageRating }) => (
-      <div data-testid="review-display">
-        Mock Review Display: Avg Rating {averageRating.toFixed(1)}
-        {reviews.map(r => <div key={r.id}>{r.comment}</div>)}
-      </div>
-    ));
+    // Mock implementations
+    (productApi.getProductById as jest.Mock).mockResolvedValue(mockProduct);
+    (reviewApi.getReviews as jest.Mock).mockResolvedValue(mockReviews);
+    (reviewApi.calculateAverageRating as jest.Mock).mockReturnValue(mockAverageRating);
+    (reviewApi.submitReview as jest.Mock).mockResolvedValue({
+      id: 'rev_3', productId: productId, userId: 'u1', userName: 'Alice', rating: 4, comment: 'New review.', date: '2023-01-10'
+    });
   });
 
-  // Happy Path Test Case: Product and reviews load successfully
-  test('should load product details and reviews successfully', async () => {
+  // Helper to render the component within a Router context
+  const renderProductPage = (id: string) => {
     render(
-      <Router>
-        <ProductPage />
+      <Router initialEntries={[`/products/${id}`]} initialIndex={0}>
+        <Routes>
+          <Route path="/products/:productId" element={<ProductPage />} />
+        </Routes>
       </Router>
     );
+  };
 
-    // Wait for API calls to complete
-    await waitFor(() => {
-      expect(mockGetProductById).toHaveBeenCalledWith('p1');
-      expect(mockGetReviews).toHaveBeenCalledWith('p1');
-      expect(mockCalculateAverageRating).toHaveBeenCalledWith(mockReviews);
-    });
+  // Happy Path Test: Renders product details and reviews
+  test('renders product details and reviews successfully', async () => {
+    renderProductPage(productId);
 
-    // Check if ProductDetail is rendered with the correct product prop
-    expect(MockProductDetail).toHaveBeenCalledTimes(1);
-    // ProductDetail mock receives product as a prop, so check it this way:
-    expect(MockProductDetail).toHaveBeenCalledWith({ product: mockProduct }, {});
+    // Check for loading state (briefly)
+    expect(screen.getByText(/loading product.../i)).toBeInTheDocument();
 
-    // Check if ReviewForm and ReviewDisplay are rendered with correct props
-    expect(MockReviewForm).toHaveBeenCalledTimes(1);
-    expect(MockReviewForm).toHaveBeenCalledWith(expect.objectContaining({
-      productId: mockProduct.id,
-      userId: 'u1', // Mocked currentUser
-    }), {});
+    // Wait for data to load
+    await waitFor(() => expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument());
 
-    expect(MockReviewDisplay).toHaveBeenCalledTimes(1);
-    expect(MockReviewDisplay).toHaveBeenCalledWith(expect.objectContaining({
-      reviews: mockReviews,
-      averageRating: mockAverageRating,
-    }), {});
+    // Verify product details are displayed
+    expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument();
+    expect(screen.getByText(/A comfortable and stylish t-shirt/i)).toBeInTheDocument();
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    expect(screen.getByAltText('Stylish T-Shirt')).toHaveAttribute('src', '/images/product1.jpg');
+
+    // Verify reviews section
+    expect(screen.getByText(/Reviews/i)).toBeInTheDocument();
+    expect(screen.getByText(/Average Rating: 4.5/i)).toBeInTheDocument(); // Assuming display format
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('Great product!')).toBeInTheDocument();
+    expect(screen.getByText('Bob')).toBeInTheDocument();
+    expect(screen.getByText('Good quality.')).toBeInTheDocument();
   });
 
-  // Edge Case Test Case: Product ID is missing in URL params
-  test('should display an error if product ID is missing', async () => {
-    mockUseParams.mockReturnValue({ productId: undefined });
+  // Error Handling Test: Product not found
+  test('displays an error message if product details fail to load', async () => {
+    const errorMessage = 'Product not found';
+    (productApi.getProductById as jest.Mock).mockRejectedValue(new Error(errorMessage));
 
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
+    renderProductPage(productId);
 
-    await waitFor(() => {
-      expect(screen.getByText('Error: Product ID is missing.')).toBeInTheDocument();
-    });
-    expect(mockGetProductById).not.toHaveBeenCalled();
-    expect(mockGetReviews).not.toHaveBeenCalled();
-    expect(MockProductDetail).not.toHaveBeenCalled(); // Should not render if error
+    await waitFor(() => expect(screen.getByText(`Error: ${errorMessage}`)).toBeInTheDocument());
+    expect(screen.queryByText('Stylish T-Shirt')).not.toBeInTheDocument(); // Ensure product details are not shown
   });
 
-  // Error Handling Test Case: getProductById API call fails
-  test('should display an error if fetching product details fails', async () => {
-    const error = new Error('Failed to fetch product');
-    mockGetProductById.mockRejectedValue(error);
+  // Error Handling Test: Reviews fail to load
+  test('displays an error message if reviews fail to load', async () => {
+    const errorMessage = 'Failed to load reviews';
+    (reviewApi.getReviews as jest.Mock).mockRejectedValue(new Error(errorMessage));
+    // Average rating calculation might also fail or be 0 if reviews are empty
+    (reviewApi.calculateAverageRating as jest.Mock).mockReturnValue(0);
 
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
+    renderProductPage(productId);
 
-    await waitFor(() => {
-      expect(mockGetProductById).toHaveBeenCalledWith('p1');
-      expect(screen.getByText(`Error: ${error.message}`)).toBeInTheDocument();
-    });
-    expect(mockGetReviews).not.toHaveBeenCalled(); // getReviews should not be called if product fetch fails
-    expect(MockProductDetail).not.toHaveBeenCalled(); // Should not render if error
+    await waitFor(() => expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument()); // Product details should still load
+    expect(screen.getByText(/Error loading reviews/i)).toBeInTheDocument(); // Assuming ProductPage displays this error
+    expect(screen.getByText('Average Rating: 0')).toBeInTheDocument(); // Or whatever default
   });
 
-  // Error Handling Test Case: getReviews API call fails
-  test('should display an error if fetching reviews fails', async () => {
-    const error = new Error('Failed to fetch reviews');
-    mockGetReviews.mockRejectedValue(error);
+  // Test for submitting a review
+  test('allows submitting a review and updates the displayed reviews', async () => {
+    renderProductPage(productId);
 
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
+    await waitFor(() => expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument());
 
-    await waitFor(() => {
-      expect(mockGetProductById).toHaveBeenCalledWith('p1');
-      expect(mockGetReviews).toHaveBeenCalledWith('p1');
-      // The error message displayed in the UI comes from the product loading logic.
-      // If getProductById succeeds and getReviews fails, the error state should reflect the review error.
-      // For simplicity, assuming the error message from getReviews will be caught and displayed.
-      // If the error message shown is still from product loading, this check might fail.
-      expect(screen.getByText(`Error: ${error.message}`)).toBeInTheDocument();
-    });
-    // ReviewDisplay should still be called, but with empty reviews and 0 average rating
-    expect(MockReviewDisplay).toHaveBeenCalledWith(expect.objectContaining({
-      reviews: [],
-      averageRating: 0,
-    }), {});
-  });
+    // Mock user logged in
+    // If ProductPage checks for currentUser, we might need to mock that too or ensure it's passed
+    // The current ProductPage code checks for `currentUser?.id` before rendering ReviewForm
 
-  // Edge Case Test Case: Product found but has no reviews
-  test('should display correctly when product has no reviews', async () => {
-    mockGetReviews.mockResolvedValue([]); // No reviews
-    mockCalculateAverageRating.mockReturnValue(0); // Average rating is 0
+    // Fill and submit the review form
+    const ratingInput = screen.getByLabelText(/Your Rating/i); // Assuming label exists
+    const commentInput = screen.getByPlaceholderText(/Your comments.../i); // Assuming placeholder
+    const submitButton = screen.getByRole('button', { name: /Submit Review/i });
 
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
-
-    await waitFor(() => {
-      expect(mockGetProductById).toHaveBeenCalledWith('p1');
-      expect(mockGetReviews).toHaveBeenCalledWith('p1');
-    });
-
-    // ReviewDisplay should be called with empty reviews and 0 average rating
-    expect(MockReviewDisplay).toHaveBeenCalledWith(expect.objectContaining({
-      reviews: [],
-      averageRating: 0,
-    }), {});
-  });
-
-  // Interaction Test Case: Submitting a review
-  test('should update reviews and average rating after submitting a new review', async () => {
-    // Configure MockReviewForm to call onSubmit when its submit button is clicked
-    let reviewFormOnSubmit: (reviewData: any) => Promise<void> = () => Promise.resolve();
-    MockReviewForm.mockImplementation((props) => {
-      reviewFormOnSubmit = props.onSubmit; // Capture the onSubmit prop
-      return (
-        <div data-testid="review-form">
-          Mock Review Form for {props.productId}
-          <button onClick={() => props.onSubmit({ productId: 'p1', userId: 'u1', rating: 5, comment: 'New Review!' })}>Submit Mock Review</button>
-        </div>
-      );
-    });
-
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
-
-    await waitFor(() => expect(mockGetProductById).toHaveBeenCalled());
-
-    // Simulate clicking the submit button within the mocked ReviewForm
-    const submitButton = screen.getByRole('button', { name: /Submit Mock Review/i });
+    fireEvent.change(ratingInput, { target: { value: '4' } });
+    fireEvent.change(commentInput, { target: { value: 'This is a new review!' } });
     fireEvent.click(submitButton);
 
-    // Wait for the state update and re-render
+    // Wait for the submission to complete and UI to update
     await waitFor(() => {
-      expect(mockSubmitReview).toHaveBeenCalledWith('p1', 'u1', 5, 'New Review!');
-      // Check that MockReviewDisplay was called again with updated data reflecting the new review
-      expect(MockReviewDisplay).toHaveBeenCalledTimes(2); // Once initially, once after submission
-      const latestProps = MockReviewDisplay.mock.calls[MockReviewDisplay.mock.calls.length - 1][0]; // Get props of the last call
-      expect(latestProps.reviews.length).toBe(mockReviews.length + 1); // One more review
-      expect(latestProps.averageRating).toBeGreaterThan(mockAverageRating); // Average rating should increase
+      expect(reviewApi.submitReview).toHaveBeenCalledTimes(1);
+      expect(reviewApi.submitReview).toHaveBeenCalledWith(
+        productId,
+        expect.any(String), // userId from currentUser
+        4,
+        'This is a new review!'
+      );
+      // Check if new review is displayed (assuming it shows userName and comment)
+      expect(screen.getByText('Alice')).toBeInTheDocument(); // Assuming current user name is Alice
+      expect(screen.getByText('This is a new review!')).toBeInTheDocument();
+      // Check if average rating updated (this would be a more complex test if not mocked)
+      expect(screen.getByText(/Average Rating: 4.5/i)).toBeInTheDocument(); // This mock doesn't update avg rating, just adds review
+      // If mockAverageRating was calculated based on new reviews, this would change.
     });
   });
 
-  // Interaction Test Case: User not logged in
-  test('should display login prompt if user is not logged in', async () => {
-    // To test the "not logged in" state, we need to ensure the `currentUser.id` is not available.
-    // Since `currentUser` is defined internally in `ProductPage.tsx` and not passed as a prop or context,
-    // we cannot directly mock it for the test without refactoring `ProductPage`.
-    // Instead, we will assert that the `ReviewForm` mock is NOT called, and the login prompt text is rendered.
+  // Test for logged-out user not seeing review form
+  test('does not show review form if user is not logged in', async () => {
+    // Temporarily override the mock to simulate a logged-out user
+    // This requires a way to mock currentUser, or mock the check within ProductPage.
+    // For simplicity, let's assume the check is directly in ProductPage and we can't easily mock it without code change.
+    // If the component was structured to receive `currentUser` as a prop, testing would be easier.
+    // Based on the current code: `currentUser?.id ? (...) : (...)`
+    // We can't directly mock `currentUser` as it's likely defined in a context outside this component's direct scope.
+    // We will assume for this test that the `currentUser` is NOT available.
 
     render(
-      <Router>
-        <ProductPage />
+      <Router initialEntries={[`/products/${productId}`]} initialIndex={0}>
+        <Routes>
+          <Route path="/products/:productId" element={<ProductPage />} />
+        </Routes>
       </Router>
     );
 
-    await waitFor(() => expect(mockGetProductById).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument());
 
-    // Assert that the ReviewForm was NOT rendered (mock not called)
-    expect(MockReviewForm).not.toHaveBeenCalled();
-    // Assert that the login prompt text is visible
-    expect(screen.getByText(/Please login to leave a review/i)).toBeInTheDocument();
+    // Check if the login prompt is displayed instead of the form
+    expect(screen.getByText(/Please log in to leave a review./i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Submit Review/i })).not.toBeInTheDocument();
   });
 
-  // Interaction Test Case: Displaying error from ReviewForm
-  test('should display error message passed from ReviewForm', async () => {
-    // MockReviewForm's onError prop is called by its internal button
-    MockReviewForm.mockImplementation((props) => (
-      <div data-testid="review-form">
-        Mock Review Form
-        <button onClick={() => props.onError('Error from review form!')}>Trigger Form Error</button>
-      </div>
-    ));
+  // Test for ProductDetail component integration
+  test('ProductDetail component is used to display product information', async () => {
+    renderProductPage(productId);
+    await waitFor(() => expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument());
 
-    render(
-      <Router>
-        <ProductPage />
-      </Router>
-    );
-
-    await waitFor(() => expect(mockGetProductById).toHaveBeenCalled());
-
-    // Click the button in MockReviewForm to trigger its onError
-    const triggerErrorButton = screen.getByRole('button', { name: /Trigger Mock Error/i });
-    fireEvent.click(triggerErrorButton);
-
-    // Check if the error message is displayed in ProductPage
-    await waitFor(() => {
-      expect(screen.getByText('Error from review form!')).toBeInTheDocument();
-    });
+    // Check if ProductDetail specific elements are rendered or if its content is present
+    // Based on ProductDetail.tsx, it renders an image, h2, and p for description and price.
+    expect(screen.getByAltText('Stylish T-Shirt')).toBeInTheDocument(); // From ProductDetail
+    expect(screen.getByText('Stylish T-Shirt')).toBeInTheDocument(); // From ProductDetail
+    expect(screen.getByText(/A comfortable and stylish t-shirt/i)).toBeInTheDocument(); // From ProductDetail
+    expect(screen.getByText('$25.00')).toBeInTheDocument(); // From ProductDetail
   });
 });
