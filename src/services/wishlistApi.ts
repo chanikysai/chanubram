@@ -1,49 +1,88 @@
 // src/services/wishlistApi.ts
-// This file contains functions for interacting with the wishlist backend API.
+import { Product } from '../types/product';
+import { WishlistItem } from '../types/wishlist';
 
-import type { Product } from '../types/product';
+// Assuming these are your API endpoints
+const API_BASE_URL = '/api'; // Use a relative path or configure a base URL
 
-// In a real application, these would be actual API calls (e.g., using fetch or axios).
-// For now, we simulate API responses.
-
-export const fetchWishlistItems = async (): Promise<Product[]> => {
-  console.log('Simulating API call to fetch wishlist items...');
-  // Simulate a network delay
-  await new Promise(resolve => setTimeout(resolve, 200));
-
-  // Placeholder data - replace with actual fetch logic
-  // This mock data should ideally be fetched from an API or retrieved from local storage if offline support is needed.
-  // For demonstration purposes, we'll return an empty array or some predefined items.
-  // In a real app, you'd fetch from: const response = await fetch('/api/wishlist');
-  const mockWishlist: Product[] = [
-    { id: 'wish-prod-1', name: 'Fancy Widget', price: 29.99, description: 'A very fancy widget.' },
-    { id: 'wish-prod-2', name: 'Basic Gadget', price: 10.00, description: 'A simple, reliable gadget.' },
-  ];
-  return mockWishlist;
+// Helper function to fetch data
+const fetchWrapper = async <T>(url: string, options?: RequestInit): Promise<T> => {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+    throw new Error(errorBody.message || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
 };
 
-export const addWishlistItem = async (product: Product): Promise<void> => {
-  console.log(`Simulating API call to add product ${product.id} to wishlist...`);
-  await new Promise(resolve => setTimeout(resolve, 150));
-  // In a real app: await fetch('/api/wishlist', { method: 'POST', body: JSON.stringify({ productId: product.id }) });
-  console.log(`Product ${product.id} added to wishlist.`);
+// Function to get all wishlist items for the current user
+export const getWishlistItems = async (): Promise<WishlistItem[]> => {
+  console.log('API: Fetching wishlist items...');
+  try {
+    const items = await fetchWrapper<WishlistItem[]>(`${API_BASE_URL}/wishlist`);
+    console.log(`API: Fetched ${items.length} wishlist items.`);
+    return items;
+  } catch (error) {
+    console.error('API: Error fetching wishlist items:', error);
+    // In a real app, you might want to return a default empty array or re-throw
+    throw error;
+  }
 };
 
-export const removeWishlistItem = async (productId: string): Promise<void> => {
-  console.log(`Simulating API call to remove product ${productId} from wishlist...`);
-  await new Promise(resolve => setTimeout(resolve, 150));
-  // In a real app: await fetch(`/api/wishlist/${productId}`, { method: 'DELETE' });
-  console.log(`Product ${productId} removed from wishlist.`);
+// Function to add a product to the wishlist
+export const addWishlistItem = async (product: Product): Promise<WishlistItem> => {
+  console.log(`API: Adding product ${product.id} to wishlist...`);
+  if (!product.id) {
+    throw new Error('Product ID is required to add to wishlist.');
+  }
+  try {
+    const newItem = await fetchWrapper<WishlistItem>(`${API_BASE_URL}/wishlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productId: product.id }),
+    });
+    console.log(`API: Product ${product.id} added to wishlist with ID ${newItem.wishlistId}.`);
+    return newItem;
+  } catch (error) {
+    console.error('API: Error adding product to wishlist:', error);
+    throw error;
+  }
 };
 
-// This function would be used to move an item from wishlist to cart.
-// It might involve removing from wishlist and adding to cart API calls.
-// For now, it's a placeholder.
-export const moveWishlistItemToCart = async (productId: string): Promise<void> => {
-  console.log(`Simulating API call to move product ${productId} from wishlist to cart...`);
-  await new Promise(resolve => setTimeout(resolve, 200));
-  // In a real app, this could involve two steps:
-  // 1. Remove from wishlist: await removeWishlistItem(productId);
-  // 2. Add to cart: await addItemToCart(productId); // Assuming addItemToCart API exists
-  console.log(`Product ${productId} moved to cart.`);
+// Function to remove an item from the wishlist by its wishlistId
+export const removeWishlistItem = async (wishlistItemId: string): Promise<void> => {
+  console.log(`API: Removing wishlist item ${wishlistItemId}...`);
+  if (!wishlistItemId) {
+    throw new Error('Wishlist item ID is required to remove item.');
+  }
+  try {
+    await fetchWrapper<void>(`${API_BASE_URL}/wishlist/${wishlistItemId}`, {
+      method: 'DELETE',
+    });
+    console.log(`API: Wishlist item ${wishlistItemId} removed successfully.`);
+  } catch (error) {
+    console.error('API: Error removing wishlist item:', error);
+    throw error;
+  }
+};
+
+// Function to move an item from wishlist to cart
+export const moveWishlistItemToCart = async (wishlistItemId: string): Promise<void> => {
+  console.log(`API: Moving wishlist item ${wishlistItemId} to cart...`);
+  if (!wishlistItemId) {
+    throw new Error('Wishlist item ID is required to move to cart.');
+  }
+  try {
+    // This endpoint might also return the updated cart or success status
+    await fetchWrapper<void>(`${API_BASE_URL}/wishlist/move-to-cart/${wishlistItemId}`, {
+      method: 'POST',
+      // No body needed if just passing ID in URL, but could be if product details are needed
+    });
+    console.log(`API: Wishlist item ${wishlistItemId} moved to cart successfully.`);
+  } catch (error) {
+    console.error('API: Error moving wishlist item to cart:', error);
+    throw error;
+  }
 };

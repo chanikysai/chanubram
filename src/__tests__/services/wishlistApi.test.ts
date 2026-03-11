@@ -1,97 +1,191 @@
-// src/__tests__/services/wishlistApi.test.ts
-import { fetchWishlistItems, addWishlistItem, removeWishlistItem, moveWishlistItemToCart } from '../services/wishlistApi';
+import { getWishlistItems, addWishlistItem, removeWishlistItem, moveWishlistItemToCart } from '../../src/services/wishlistApi';
+import { WishlistItem } from '../../src/types/wishlist';
+import { Product } from '../../src/types/product';
 
-// Mocking the Product type if it's not globally available
-// This should match the actual Product type definition in ../types/product.ts
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  description?: string; // Added description as it's used in the mock data
-}
+// Mock the global fetch API
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
+
+// Mock data
+const mockProduct: Product = {
+  id: 'prod_1',
+  name: 'Stylish T-Shirt',
+  description: 'A comfortable and stylish t-shirt.',
+  price: 25.00,
+  imageUrl: '/images/product1.jpg',
+  inventory: 50,
+};
+
+const mockWishlistItem: WishlistItem = {
+  ...mockProduct,
+  wishlistId: 'wish_abc',
+  addedAt: '2023-10-27T10:00:00Z',
+};
+
+const mockWishlistItems: WishlistItem[] = [mockWishlistItem, {
+  ...mockProduct,
+  id: 'prod_2',
+  wishlistId: 'wish_def',
+  name: 'Comfortable Jeans',
+  price: 50.00,
+  addedAt: '2023-10-27T11:00:00Z',
+}];
 
 describe('wishlistApi', () => {
-  // Mock console.log to check if messages are printed
-  let consoleSpy: jest.SpyInstance;
-
-  beforeAll(() => {
-    // Spy on console.log to verify that functions are called
-    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  beforeEach(() => {
+    // Clear any previous calls to mockFetch
+    mockFetch.mockClear();
   });
 
-  afterAll(() => {
-    // Restore console.log after all tests are done
-    consoleSpy.mockRestore();
+  // Test for getWishlistItems
+  describe('getWishlistItems', () => {
+    test('should fetch wishlist items successfully', async () => {
+      // Mock a successful fetch response
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockWishlistItems,
+      });
+
+      const items = await getWishlistItems();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/wishlist');
+      expect(items).toEqual(mockWishlistItems);
+    });
+
+    test('should throw an error if fetch fails', async () => {
+      // Mock a failed fetch response
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: 'Server error' }),
+      });
+
+      await expect(getWishlistItems()).rejects.toThrow('Server error');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/wishlist');
+    });
+
+    test('should throw a generic error if json parsing fails on error response', async () => {
+      // Mock a failed fetch response with no JSON body
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => { throw new Error('JSON parsing error'); }, // Simulate an error during json parsing
+      });
+
+      await expect(getWishlistItems()).rejects.toThrow('HTTP error! status: 500');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/wishlist');
+    });
   });
 
-  // Test 1: Fetch wishlist items (happy path)
-  test('fetchWishlistItems should return a promise that resolves with an array of products', async () => {
-    const items = await fetchWishlistItems();
-    expect(Array.isArray(items)).toBe(true);
-    // Check if the returned items match the mock structure if available
-    // For now, we check if it's an array. The mock data itself is handled by the implementation.
-    expect(items.length).toBeGreaterThanOrEqual(0); // It might be empty or have mock data
-    expect(consoleSpy).toHaveBeenCalledWith('Simulating API call to fetch wishlist items...');
+  // Test for addWishlistItem
+  describe('addWishlistItem', () => {
+    test('should add a product to wishlist successfully', async () => {
+      // Mock a successful fetch response for POST
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockWishlistItem, // API returns the newly created item
+      });
+
+      const newItem = await addWishlistItem(mockProduct);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: mockProduct.id }),
+      });
+      expect(newItem).toEqual(mockWishlistItem);
+    });
+
+    test('should throw an error if product ID is missing', async () => {
+      const productWithoutId: Product = { ...mockProduct, id: '' };
+      await expect(addWishlistItem(productWithoutId)).rejects.toThrow('Product ID is required to add to wishlist.');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    test('should throw an error if fetch fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ message: 'Product already in wishlist' }),
+      });
+
+      await expect(addWishlistItem(mockProduct)).rejects.toThrow('Product already in wishlist');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith('/api/wishlist', expect.any(Object));
+    });
   });
 
-  // Test 2: Add a wishlist item (happy path)
-  test('addWishlistItem should resolve successfully', async () => {
-    const mockProduct: Product = {
-      id: 'test-prod-add',
-      name: 'New Wish Item',
-      price: 99.99,
-      description: 'Added to wishlist for testing.',
-    };
-    await expect(addWishlistItem(mockProduct)).resolves.toBeUndefined(); // Expect it to resolve without error
-    expect(consoleSpy).toHaveBeenCalledWith(`Simulating API call to add product ${mockProduct.id} to wishlist...`);
-    expect(consoleSpy).toHaveBeenCalledWith(`Product ${mockProduct.id} added to wishlist.`);
+  // Test for removeWishlistItem
+  describe('removeWishlistItem', () => {
+    test('should remove a wishlist item successfully', async () => {
+      // Mock a successful fetch response for DELETE
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}), // DELETE requests often return empty body on success
+      });
+
+      await removeWishlistItem(mockWishlistItem.wishlistId);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(`/api/wishlist/${mockWishlistItem.wishlistId}`, {
+        method: 'DELETE',
+      });
+    });
+
+    test('should throw an error if wishlist item ID is missing', async () => {
+      await expect(removeWishlistItem('')).rejects.toThrow('Wishlist item ID is required to remove item.');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    test('should throw an error if fetch fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ message: 'Wishlist item not found' }),
+      });
+
+      await expect(removeWishlistItem(mockWishlistItem.wishlistId)).rejects.toThrow('Wishlist item not found');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(`/api/wishlist/${mockWishlistItem.wishlistId}`, expect.any(Object));
+    });
   });
 
-  // Test 3: Remove a wishlist item (happy path)
-  test('removeWishlistItem should resolve successfully', async () => {
-    const productIdToRemove = 'wish-prod-1';
-    await expect(removeWishlistItem(productIdToRemove)).resolves.toBeUndefined();
-    expect(consoleSpy).toHaveBeenCalledWith(`Simulating API call to remove product ${productIdToRemove} from wishlist...`);
-    expect(consoleSpy).toHaveBeenCalledWith(`Product ${productIdToRemove} removed from wishlist.`);
-  });
+  // Test for moveWishlistItemToCart
+  describe('moveWishlistItemToCart', () => {
+    test('should move a wishlist item to cart successfully', async () => {
+      // Mock a successful fetch response for POST
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true }), // Assuming API returns a success object
+      });
 
-  // Test 4: Move a wishlist item to cart (happy path)
-  test('moveWishlistItemToCart should resolve successfully', async () => {
-    const productIdToMove = 'wish-prod-2';
-    await expect(moveWishlistItemToCart(productIdToMove)).resolves.toBeUndefined();
-    expect(consoleSpy).toHaveBeenCalledWith(`Simulating API call to move product ${productIdToMove} from wishlist to cart...`);
-    expect(consoleSpy).toHaveBeenCalledWith(`Product ${productIdToMove} moved to cart.`);
-  });
+      await moveWishlistItemToCart(mockWishlistItem.wishlistId);
 
-  // Test 5: Edge case - Fetching an empty wishlist
-  test('fetchWishlistItems should return an empty array if the wishlist is empty', async () => {
-    // Temporarily mock fetchWishlistItems to return an empty array
-    const originalFetchWishlistItems = require('../services/wishlistApi').fetchWishlistItems;
-    jest.spyOn(require('../services/wishlistApi'), 'fetchWishlistItems').mockResolvedValueOnce([]);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(`/api/wishlist/move-to-cart/${mockWishlistItem.wishlistId}`, {
+        method: 'POST',
+      });
+    });
 
-    const items = await fetchWishlistItems();
-    expect(items).toEqual([]);
-    expect(items.length).toBe(0);
+    test('should throw an error if wishlist item ID is missing', async () => {
+      await expect(moveWishlistItemToCart('')).rejects.toThrow('Wishlist item ID is required to move to cart.');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
 
-    // Restore the original mock implementation
-    jest.restoreAllMocks();
-  });
+    test('should throw an error if fetch fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ message: 'Cannot move item, insufficient stock in cart' }),
+      });
 
-  // Test 6: Error handling (simulated) - For addWishlistItem
-  // This requires mocking the underlying API call mechanism if it were real.
-  // Since these are placeholders, we can't easily simulate an API error directly here
-  // without more complex mocking. However, in a real scenario, we'd check for thrown errors.
-  // For demonstration, let's assume a scenario where the API might reject.
-  test('addWishlistItem should handle potential rejections (simulated)', async () => {
-    // Temporarily mock addWishlistItem to reject
-    const mockProduct = { id: 'test-prod-err', name: 'Error Item', price: 1.00 };
-    const apiError = new Error('Simulated API error during add');
-    jest.spyOn(require('../services/wishlistApi'), 'addWishlistItem').mockRejectedValueOnce(apiError);
-
-    // We expect the call to addWishlistItem to throw an error
-    await expect(addWishlistItem(mockProduct as Product)).rejects.toThrow('Simulated API error during add');
-
-    // Restore the original mock implementation
-    jest.restoreAllMocks();
+      await expect(moveWishlistItemToCart(mockWishlistItem.wishlistId)).rejects.toThrow('Cannot move item, insufficient stock in cart');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(`/api/wishlist/move-to-cart/${mockWishlistItem.wishlistId}`, expect.any(Object));
+    });
   });
 });

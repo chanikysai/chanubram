@@ -1,88 +1,103 @@
-// src/pages/WishlistPage.tsx
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import WishlistItem from '../components/WishlistItem'; // Import the new WishlistItem component
-import { fetchWishlistItems, removeWishlistItem, moveWishlistItemToCart } from '../services/wishlistApi';
-import type { Product } from '../types/product';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import WishlistItemComponent from '../components/WishlistItem'; // Import the WishlistItem component
+import { WishlistItem } from '../types/wishlist'; // Import the WishlistItem type
+import { getWishlistItems, removeWishlistItem, moveWishlistItemToCart } from '../services/wishlistApi'; // Import wishlist API functions
+import './WishlistPage.css'; // Assuming CSS for styling
 
 const WishlistPage: React.FC = () => {
-  const { addItem } = useCart();
-  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadWishlist = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const items = await fetchWishlistItems();
-        setWishlistItems(items);
-      } catch (err) {
-        console.error("Failed to load wishlist:", err);
-        setError("Could not load your wishlist. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const navigate = useNavigate();
 
-    loadWishlist();
+  // Fetch wishlist items on component mount
+  const fetchWishlist = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await getWishlistItems();
+      setWishlistItems(items);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch wishlist.');
+      setWishlistItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleRemoveItem = async (productId: string) => {
-    setError(null);
-    try {
-      await removeWishlistItem(productId);
-      // Optimistically update UI or re-fetch
-      setWishlistItems(prevItems => prevItems.filter(item => item.id !== productId));
-      console.log(`Item ${productId} removed from wishlist.`);
-    } catch (err) {
-      console.error("Failed to remove item from wishlist:", err);
-      setError("Could not remove item. Please try again.");
+  useEffect(() => {
+    fetchWishlist();
+  }, [fetchWishlist]);
+
+  // Handler for removing an item from the wishlist
+  const handleRemoveItem = async (wishlistItemId: string) => {
+    if (window.confirm('Are you sure you want to remove this item from your wishlist?')) {
+      try {
+        await removeWishlistItem(wishlistItemId);
+        // Optimistically update state or re-fetch
+        setWishlistItems(prevItems => prevItems.filter(item => item.wishlistId !== wishlistItemId));
+        // In a real app, you might want a more robust state update or confirmation
+      } catch (err: any) {
+        setError(`Failed to remove item: ${err.message}`);
+        // Optionally re-fetch to get the correct state if optimistic update failed
+        fetchWishlist();
+      }
     }
   };
 
-  const handleMoveToCart = async (product: Product) => {
-    setError(null);
+  // Handler for moving an item from wishlist to cart
+  const handleMoveToCart = async (item: WishlistItem) => {
+    // You might want to check inventory here if it's not handled by the API,
+    // or display a confirmation message.
     try {
-      // Call the wishlist API to move item (this might also remove it from wishlist)
-      await moveWishlistItemToCart(product.id);
-      // Add item to cart context
-      addItem(product);
-      // Remove item from wishlist state after successful move to cart
-      setWishlistItems(prevItems => prevItems.filter(item => item.id !== product.id));
-      console.log(`Item ${product.id} moved to cart.`);
-    } catch (err) {
-      console.error("Failed to move item to cart:", err);
-      setError("Could not move item to cart. Please try again.");
+      await moveWishlistItemToCart(item.wishlistId);
+      // After moving to cart, remove it from wishlist
+      await removeWishlistItem(item.wishlistId); // Ensure it's removed from wishlist too
+      setWishlistItems(prevItems => prevItems.filter(wishItem => wishItem.wishlistId !== item.wishlistId));
+      // Optionally navigate to the cart page or show a success message
+      // For now, we'll just update the state and assume the cart API call was successful.
+      console.log(`Item ${item.name} moved to cart and removed from wishlist.`);
+      // Navigate to cart if desired
+      // navigate('/cart');
+    } catch (err: any) {
+      setError(`Failed to move item to cart: ${err.message}`);
+      // Optionally re-fetch to get the correct state
+      fetchWishlist();
     }
   };
+
+  // Render loading state
+  if (loading) {
+    return <div className="wishlist-page__loading">Loading your wishlist...</div>;
+  }
+
+  // Render error state
+  if (error) {
+    return <div className="wishlist-page__error">Error: {error}</div>;
+  }
 
   return (
-    <div className="wishlist-page" style={{ padding: '20px' }}>
-      <h1>My Wishlist</h1>
+    <div className="wishlist-page">
+      <header className="wishlist-page__header">
+        <h1>My Wishlist</h1>
+      </header>
 
-      {isLoading && <p>Loading wishlist...</p>}
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {!isLoading && !error && wishlistItems.length === 0 && (
-        <p>Your wishlist is empty. <Link to="/">Start shopping!</Link></p>
-      )}
-
-      {!isLoading && !error && wishlistItems.length > 0 && (
-        <div>
-          {wishlistItems.map(item => (
-            <WishlistItem
-              key={item.id}
-              product={item}
+      <div className="wishlist-page__content">
+        {wishlistItems.length > 0 ? (
+          wishlistItems.map(item => (
+            <WishlistItemComponent
+              key={item.wishlistId} // Use wishlistId for unique key
+              item={item}
               onRemove={handleRemoveItem}
               onMoveToCart={handleMoveToCart}
             />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="wishlist-page__empty">Your wishlist is empty. Start adding products!</p>
+        )}
+      </div>
     </div>
   );
 };

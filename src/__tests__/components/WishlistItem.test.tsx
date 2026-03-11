@@ -1,96 +1,97 @@
-// src/__tests__/components/WishlistItem.test.tsx
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import WishlistItem from '../components/WishlistItem'; // Corrected import path
-import type { Product } from '../types/product'; // Assuming Product type is needed
+import '@testing-library/jest-dom';
+import WishlistItemComponent from '../../src/components/WishlistItem'; // Adjust the import path as needed
+import { WishlistItem } from '../../src/types/wishlist'; // Import the WishlistItem type
 
-// Mock Product type if not globally available
-interface MockProduct extends Product {
-  id: string;
-  name: string;
-  price: number;
-}
+// Mock data for a WishlistItem
+const mockWishlistItem: WishlistItem = {
+  id: 'prod_1',
+  wishlistId: 'wish_abc',
+  name: 'Stylish T-Shirt',
+  description: 'A comfortable and stylish t-shirt.',
+  price: 25.00,
+  imageUrl: '/images/product1.jpg',
+  inventory: 50,
+  addedAt: '2023-10-27T10:00:00Z',
+};
 
-describe('WishlistItem', () => {
-  const mockProduct: MockProduct = {
-    id: 'wish-item-1',
-    name: 'Wishlist Item Example',
-    price: 75.50,
-  };
+// Mock handler functions
+const mockOnRemove = jest.fn();
+const mockOnMoveToCart = jest.fn();
 
-  const mockOnRemove = jest.fn();
-  const mockOnMoveToCart = jest.fn();
-
-  // Test 1: Render product details correctly (happy path)
-  test('should render product name and price', () => {
+describe('WishlistItemComponent', () => {
+  // Test case 1: Renders correctly with item details
+  test('renders item details correctly', () => {
     render(
-      <WishlistItem
-        product={mockProduct}
+      <WishlistItemComponent
+        item={mockWishlistItem}
         onRemove={mockOnRemove}
         onMoveToCart={mockOnMoveToCart}
       />
     );
 
-    expect(screen.getByText('Wishlist Item Example')).toBeInTheDocument();
-    expect(screen.getByText('$75.50')).toBeInTheDocument();
+    // Check if product name, price, and image are displayed
+    expect(screen.getByText(mockWishlistItem.name)).toBeInTheDocument();
+    expect(screen.getByText(`$${mockWishlistItem.price.toFixed(2)}`)).toBeInTheDocument();
+    expect(screen.getByAltText(mockWishlistItem.name)).toBeInTheDocument();
+    expect(screen.getByAltText(mockWishlistItem.name)).toHaveAttribute('src', mockWishlistItem.imageUrl);
   });
 
-  // Test 2: Call onRemove when "Remove" button is clicked (happy path)
-  test('should call onRemove with product ID when "Remove" button is clicked', () => {
+  // Test case 2: Calls onRemove when the "Remove" button is clicked
+  test('calls onRemove handler when Remove button is clicked', () => {
     render(
-      <WishlistItem
-        product={mockProduct}
+      <WishlistItemComponent
+        item={mockWishlistItem}
         onRemove={mockOnRemove}
         onMoveToCart={mockOnMoveToCart}
       />
     );
 
-    const removeButton = screen.getByText('Remove');
+    const removeButton = screen.getByRole('button', { name: `Remove ${mockWishlistItem.name} from wishlist` });
     fireEvent.click(removeButton);
 
+    // Expect onRemove to have been called with the correct wishlistId
     expect(mockOnRemove).toHaveBeenCalledTimes(1);
-    expect(mockOnRemove).toHaveBeenCalledWith(mockProduct.id);
+    expect(mockOnRemove).toHaveBeenCalledWith(mockWishlistItem.wishlistId);
   });
 
-  // Test 3: Call onMoveToCart when "Add to Cart" button is clicked (happy path)
-  test('should call onMoveToCart with product details when "Add to Cart" button is clicked', () => {
+  // Test case 3: Calls onMoveToCart when the "Move to Cart" button is clicked
+  test('calls onMoveToCart handler when Move to Cart button is clicked', () => {
     render(
-      <WishlistItem
-        product={mockProduct}
+      <WishlistItemComponent
+        item={mockWishlistItem}
         onRemove={mockOnRemove}
         onMoveToCart={mockOnMoveToCart}
       />
     );
 
-    const addToCartButton = screen.getByText('Add to Cart');
-    fireEvent.click(addToCartButton);
+    const moveToCartButton = screen.getByRole('button', { name: `Move ${mockWishlistItem.name} to cart` });
+    fireEvent.click(moveToCartButton);
 
+    // Expect onMoveToCart to have been called with the item object
     expect(mockOnMoveToCart).toHaveBeenCalledTimes(1);
-    expect(mockOnMoveToCart).toHaveBeenCalledWith(mockProduct);
+    expect(mockOnMoveToCart).toHaveBeenCalledWith(mockWishlistItem);
   });
 
-  // Test 4: Edge case - Product with zero price
-  test('should render correctly with a zero price product', () => {
-    const zeroPriceProduct: MockProduct = {
-      ...mockProduct,
-      id: 'wish-item-zero-price',
-      price: 0.00,
+  // Edge case: Test with missing image URL (should use placeholder)
+  test('displays placeholder image if imageUrl is missing', () => {
+    const itemWithoutImage: WishlistItem = {
+      ...mockWishlistItem,
+      imageUrl: '', // Empty imageUrl
     };
+
     render(
-      <WishlistItem
-        product={zeroPriceProduct}
+      <WishlistItemComponent
+        item={itemWithoutImage}
         onRemove={mockOnRemove}
         onMoveToCart={mockOnMoveToCart}
       />
     );
 
-    expect(screen.getByText('Wishlist Item Example')).toBeInTheDocument();
-    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    // Check if the alt text is still correct and the src points to the placeholder
+    const imgElement = screen.getByAltText(itemWithoutImage.name);
+    expect(imgElement).toBeInTheDocument();
+    expect(imgElement).toHaveAttribute('src', 'https://via.placeholder.com/100');
   });
-
-  // Test 5: Error handling - This component relies on its parent to handle errors from API calls
-  // For component-level testing, we ensure the correct callbacks are triggered.
-  // A more robust error handling test would involve mocking `onRemove` or `onMoveToCart` to throw errors,
-  // but this component itself doesn't have error handling logic, it just calls props.
-  // We can test that callbacks are called, which is covered by tests 2 and 3.
 });
