@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -18,12 +17,21 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Partner relationship
-  partnerId String? @unique // ID of the user's partner, nullable. Made unique for one-to-one.
-  Partner   User?   @relation("PartnerRelation", fields: [partnerId], references: [id])
+  // Partner relationship: Symmetric one-to-one self-relation
+  // partnerId stores the ID of the user's partner.
+  partnerId String? @unique
+  // 'Partner' relation: Defines the FK on this model (User A) and references the PK of the related model (User B's id).
+  Partner User? @relation("UserPartnerRelation", fields: [partnerId], references: [id])
+  // 'partnerOf' relation: Defines the inverse relation, referring to the user whose partnerId points to THIS user.
+  // Prisma infers the inverse reference when fields and references are defined on one side.
+  partnerOf User? @relation("UserPartnerRelation")
+
 
   // Invites sent by this user
   SentInvites Invite[] @relation("InviterRelation")
+
+  // Memories created by this user
+  Memories Memory[]
 }
 
 model Invite {
@@ -36,4 +44,33 @@ model Invite {
   Inviter   User     @relation("InviterRelation", fields: [inviterId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+// Model for memories
+model Memory {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  date        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign key to the User who created the memory
+  userId String
+  User   User     @relation(fields: [userId], references: [id])
+
+  // Photos associated with the memory
+  Photos Photo[]
+}
+
+// Model for photos associated with memories
+model Photo {
+  id       String @id @default(uuid())
+  url      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign key to the memory this photo belongs to
+  memoryId String
+  Memory   Memory   @relation(fields: [memoryId], references: [id])
 }
