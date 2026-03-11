@@ -17,4 +17,23 @@ model User {
   password      String? // Added for credentials provider
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Partner relationship
+  partnerId String? @unique // ID of the user's partner, nullable. Made unique for one-to-one.
+  Partner   User?   @relation("PartnerRelation", fields: [partnerId], references: [id])
+
+  // Invites sent by this user
+  SentInvites Invite[] @relation("InviterRelation")
+}
+
+model Invite {
+  id        String   @id @default(uuid())
+  code      String   @unique // The unique invite code
+  expiresAt DateTime // When the invite code expires
+
+  // User who sent the invite
+  inviterId String
+  Inviter   User     @relation("InviterRelation", fields: [inviterId], references: [id])
+
+  createdAt DateTime @default(now())
 }
