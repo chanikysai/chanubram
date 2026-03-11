@@ -1,18 +1,26 @@
-datasource db {
-  provider = "postgresql"
-}
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
-model Goal {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  targetDate  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  status      String    @default("active")
-  progress    String?
+datasource db {
+  provider = "postgresql" // Assuming PostgreSQL, common for web apps. Can be changed if needed.
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  text      String   @unique
+  createdAt DateTime @default(now()) // Date this question was made available
+  answers   Answer[]
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  userId     String   // Assuming user ID is available from auth
+  text       String
+  createdAt  DateTime @default(now())
 }
