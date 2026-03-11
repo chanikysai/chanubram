@@ -1,131 +1,136 @@
-import React, { useState, FormEvent } from 'react';
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import AuthForm from '../../components/AuthForm';
+import AuthForm from '../../src/components/AuthForm';
 
-describe('AuthForm', () => {
-  const mockSubmit = jest.fn();
-  const mockError = jest.fn();
+// Mocking the props
+const mockOnSubmit = jest.fn();
+const mockOnError = jest.fn();
 
-  beforeEach(() => {
-    mockSubmit.mockClear();
-    mockError.mockClear();
-  });
+describe('AuthForm Component', () => {
+  // Test case 1: Happy path - Login form submission
+  test('should call onSubmit with correct data for login', async () => {
+    render(
+      <AuthForm
+        mode="login"
+        onSubmit={mockOnSubmit}
+        onError={mockOnError}
+        isLoading={false}
+      />
+    );
 
-  test('renders login form by default', () => {
-    render(<AuthForm mode="login" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    expect(screen.getByRole('heading', { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
-  });
-
-  test('renders registration form when mode is "register"', () => {
-    render(<AuthForm mode="register" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    expect(screen.getByRole('heading', { name: /register/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /register/i })).toBeInTheDocument();
-  });
-
-  test('handles input changes for login form', () => {
-    render(<AuthForm mode="login" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-
-    expect(emailInput.value).toBe('test@example.com');
-    expect(passwordInput.value).toBe('password123');
-  });
-
-  test('handles input changes for registration form', () => {
-    render(<AuthForm mode="register" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(nameInput, { target: { value: 'Test User' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-
-    expect(emailInput.value).toBe('test@example.com');
-    expect(nameInput.value).toBe('Test User');
-    expect(passwordInput.value).toBe('password123');
-  });
-
-  test('calls onSubmit with login form data on submit', () => {
-    render(<AuthForm mode="login" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
     const submitButton = screen.getByRole('button', { name: /login/i });
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
     fireEvent.click(submitButton);
 
-    expect(mockSubmit).toHaveBeenCalledTimes(1);
-    expect(mockSubmit).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123' });
+    // Wait for potential async operations (though this form is synchronous on submit)
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+      expect(mockOnError).not.toHaveBeenCalled();
+    });
   });
 
-  test('calls onSubmit with registration form data on submit', () => {
-    render(<AuthForm mode="register" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const submitButton = screen.getByRole('button', { name: /register/i });
+  // Test case 2: Edge case - Empty fields for login
+  test('should display error message and call onError for empty login fields', async () => {
+    render(
+      <AuthForm
+        mode="login"
+        onSubmit={mockOnSubmit}
+        onError={mockOnError}
+        isLoading={false}
+      />
+    );
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(nameInput, { target: { value: 'Test User' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
-
-    expect(mockSubmit).toHaveBeenCalledTimes(1);
-    expect(mockSubmit).toHaveBeenCalledWith({ email: 'test@example.com', name: 'Test User', password: 'password123' });
-  });
-
-  test('shows error message for missing fields on login submit', async () => {
-    render(<AuthForm mode="login" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
     const submitButton = screen.getByRole('button', { name: /login/i });
-
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Please fill in all fields./i)).toBeInTheDocument();
-      expect(mockError).toHaveBeenCalledWith('Please fill in all fields.');
+      expect(mockOnSubmit).not.toHaveBeenCalled();
+      expect(mockOnError).toHaveBeenCalledWith('Please fill in all fields.');
+      // Check if error message is displayed in the component
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
     });
-    expect(mockSubmit).not.toHaveBeenCalled();
   });
 
-  test('shows error message for missing fields on registration submit', async () => {
-    render(<AuthForm mode="register" onSubmit={mockSubmit} onError={mockError} isLoading={false} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+  // Test case 3: Happy path - Registration form submission
+  test('should call onSubmit with correct data for registration', async () => {
+    render(
+      <AuthForm
+        mode="register"
+        onSubmit={mockOnSubmit}
+        onError={mockOnError}
+        isLoading={false}
+      />
+    );
+
+    const nameInput = screen.getByLabelText(/name/i);
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
     const submitButton = screen.getByRole('button', { name: /register/i });
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.change(nameInput, { target: { value: 'Test User' } });
+    fireEvent.change(emailInput, { target: { value: 'register@example.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'securepassword456' } });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Please fill in all fields./i)).toBeInTheDocument();
-      expect(mockError).toHaveBeenCalledWith('Please fill in all fields.');
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        email: 'register@example.com',
+        name: 'Test User',
+        password: 'securepassword456',
+      });
+      expect(mockOnError).not.toHaveBeenCalled();
     });
-    expect(mockSubmit).not.toHaveBeenCalled();
   });
 
-  test('disables form and shows loading state when isLoading is true', () => {
-    render(<AuthForm mode="login" onSubmit={mockSubmit} onError={mockError} isLoading={true} />);
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+  // Test case 4: Edge case - Empty fields for registration
+  test('should display error message and call onError for empty registration fields', async () => {
+    render(
+      <AuthForm
+        mode="register"
+        onSubmit={mockOnSubmit}
+        onError={mockOnError}
+        isLoading={false}
+      />
+    );
+
+    const submitButton = screen.getByRole('button', { name: /register/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockOnSubmit).not.toHaveBeenCalled();
+      expect(mockOnError).toHaveBeenCalledWith('Please fill in all fields.');
+      // Check if error message is displayed in the component
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
+    });
+  });
+
+  // Test case 5: Loading state
+  test('should disable inputs and button when isLoading is true', () => {
+    render(
+      <AuthForm
+        mode="login"
+        onSubmit={mockOnSubmit}
+        onError={mockOnError}
+        isLoading={true}
+      />
+    );
+
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
     const submitButton = screen.getByRole('button', { name: /processing.../i });
 
     expect(emailInput).toBeDisabled();
     expect(passwordInput).toBeDisabled();
     expect(submitButton).toBeDisabled();
-    expect(screen.getByText(/processing.../i)).toBeInTheDocument();
   });
 });

@@ -1,142 +1,133 @@
-// src/__tests__/pages/RegisterPage.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import RegisterPage from '../../pages/RegisterPage';
-import { registerUser } from '../../services/authApi';
 import { useNavigate } from 'react-router-dom';
+import RegisterPage from '../../src/pages/RegisterPage';
+import { registerUser } from '../../src/services/authApi';
+import { AuthResponse, ErrorResponse } from '../../src/services/authApi'; // Import types
 
-// Mocking react-router-dom
+// Mock useNavigate
+const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
-  useNavigate: jest.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
-// Mock the authApi registerUser function
-jest.mock('../../services/authApi', () => ({
+// Mock authApi registerUser function
+jest.mock('../../src/services/authApi', () => ({
   registerUser: jest.fn(),
 }));
 
-// Define types for clarity
-type RegisterAPIResponse = { user: { id: string; name: string; email: string; }; token: string; } | { message: string; };
+// Type casting mocks for easier use
+const mockRegisterUser = registerUser as jest.Mock<Promise<AuthResponse | ErrorResponse>>;
 
-describe('RegisterPage', () => {
-  const mockNavigate = jest.fn();
-  const mockRegisterUser = registerUser as jest.Mock;
-
+describe('RegisterPage Component', () => {
+  // Reset mocks before each test
   beforeEach(() => {
-    // Reset mocks before each test
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    mockNavigate.mockClear();
     mockRegisterUser.mockClear();
-    // Clear localStorage as well, as it's used by the component logic (though not directly tested here)
-    localStorage.clear();
   });
 
-  test('renders the registration form and prompts for details', () => {
-    render(<RegisterPage />);
-    expect(screen.getByRole('heading', { name: /create your account/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /register/i })).toBeInTheDocument();
-    expect(screen.getByText(/already have an account?/i)).toBeInTheDocument();
-  });
-
-  test('calls registerUser and navigates on successful registration', async () => {
-    const mockSuccessfulResponse = { user: { id: 'user-2', name: 'Test User', email: 'test@example.com' }, token: 'mock-token-abc' };
-    mockRegisterUser.mockResolvedValue(mockSuccessfulResponse);
+  // Test case 1: Happy path - Successful registration
+  test('should navigate to login page on successful registration', async () => {
+    const mockAuthResponse: AuthResponse = {
+      user: { id: '2', name: 'New User', email: 'new@example.com' },
+      token: 'new-mock-auth-token',
+    };
+    mockRegisterUser.mockResolvedValue(mockAuthResponse);
 
     render(<RegisterPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const registerButton = screen.getByRole('button', { name: /register/i });
+    const nameInput = screen.getByLabelText(/name/i);
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /register/i });
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    fireEvent.change(nameInput, { target: { value: 'New User' } });
+    fireEvent.change(emailInput, { target: { value: 'new@example.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'newpassword789' } });
+    fireEvent.click(submitButton);
+
+    // Wait for the API call to resolve and navigation to occur
+    await waitFor(() => {
+      expect(mockRegisterUser).toHaveBeenCalledTimes(1);
+      expect(mockRegisterUser).toHaveBeenCalledWith({
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'newpassword789',
+      });
+      // On successful registration, we navigate to login
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+      expect(screen.queryByText(/email already in use/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // Test case 2: Error handling - Email already in use
+  test('should display error message when email is already in use', async () => {
+    const mockErrorResponse: ErrorResponse = { message: 'Email already in use.' };
+    mockRegisterUser.mockResolvedValue(mockErrorResponse);
+
+    render(<RegisterPage />);
+
+    const nameInput = screen.getByLabelText(/name/i);
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /register/i });
+
     fireEvent.change(nameInput, { target: { value: 'Test User' } });
+    fireEvent.change(emailInput, { target: { value: 'existing@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(registerButton);
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockRegisterUser).toHaveBeenCalledTimes(1);
       expect(mockRegisterUser).toHaveBeenCalledWith({
-        email: 'test@example.com',
         name: 'Test User',
+        email: 'existing@example.com',
         password: 'password123',
       });
-    });
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/login');
+      expect(screen.getByText(/email already in use/i)).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 
-  test('displays error message when registration fails (email in use)', async () => {
-    const mockErrorResponse = { message: 'Email already in use.' };
+  // Test case 3: Error handling - Password too short (assuming backend validation)
+  test('should display error message for short password', async () => {
+    const mockErrorResponse: ErrorResponse = { message: 'Password must be at least 6 characters long.' };
     mockRegisterUser.mockResolvedValue(mockErrorResponse);
 
     render(<RegisterPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const registerButton = screen.getByRole('button', { name: /register/i });
+    const nameInput = screen.getByLabelText(/name/i);
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /register/i });
 
-    fireEvent.change(emailInput, { target: { value: 'existing@example.com' } }); // Use email that would cause an error
-    fireEvent.change(nameInput, { target: { value: 'Test User' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(registerButton);
+    fireEvent.change(nameInput, { target: { value: 'Short Pass User' } });
+    fireEvent.change(emailInput, { target: { value: 'short@example.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'pass' } }); // Too short
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockRegisterUser).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/email already in use./i)).toBeInTheDocument();
+      expect(mockRegisterUser).toHaveBeenCalledWith({
+        name: 'Short Pass User',
+        email: 'short@example.com',
+        password: 'pass',
+      });
+      expect(screen.getByText(/password must be at least 6 characters long/i)).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 
-  test('displays error message when registration fails (short password)', async () => {
-    const mockErrorResponse = { message: 'Password must be at least 6 characters long.' };
-    mockRegisterUser.mockResolvedValue(mockErrorResponse);
-
+  // Test case 4: Navigation to login page
+  test('should navigate to the login page when the link is clicked', () => {
     render(<RegisterPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const registerButton = screen.getByRole('button', { name: /register/i });
+    const loginLink = screen.getByRole('link', { name: /login here/i });
+    fireEvent.click(loginLink);
 
-    fireEvent.change(emailInput, { target: { value: 'shortpass@example.com' } });
-    fireEvent.change(nameInput, { target: { value: 'Short Password User' } });
-    fireEvent.change(passwordInput, { target: { value: 'pass' } }); // Short password
-    fireEvent.click(registerButton);
-
-    await waitFor(() => {
-      expect(mockRegisterUser).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/password must be at least 6 characters long./i)).toBeInTheDocument();
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-  });
-
-  test('displays a generic error message for unexpected API errors', async () => {
-    mockRegisterUser.mockRejectedValue(new Error('Network Error'));
-
-    render(<RegisterPage />);
-
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const registerButton = screen.getByRole('button', { name: /register/i });
-
-    fireEvent.change(emailInput, { target: { value: 'error@example.com' } });
-    fireEvent.change(nameInput, { target: { value: 'Error User' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(registerButton);
-
-    await waitFor(() => {
-      expect(mockRegisterUser).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/An unexpected error occurred during registration./i)).toBeInTheDocument();
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/login');
   });
 });

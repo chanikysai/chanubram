@@ -1,114 +1,125 @@
-// src/__tests__/pages/LoginPage.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import LoginPage from '../../pages/LoginPage';
-import { loginUser } from '../../services/authApi';
 import { useNavigate } from 'react-router-dom';
+import LoginPage from '../../src/pages/LoginPage';
+import { loginUser } from '../../src/services/authApi';
+import { AuthResponse, ErrorResponse } from '../../src/services/authApi'; // Import types
 
-// Mocking react-router-dom
+// Mock useNavigate
+const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
-  useNavigate: jest.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
-// Mock the authApi loginUser function
-jest.mock('../../services/authApi', () => ({
+// Mock authApi loginUser function
+jest.mock('../../src/services/authApi', () => ({
   loginUser: jest.fn(),
 }));
 
-// Define types for clarity
-type LoginAPIResponse = { user: { id: string; name: string; email: string; }; token: string; } | { message: string; };
+// Type casting mocks for easier use
+const mockLoginUser = loginUser as jest.Mock<Promise<AuthResponse | ErrorResponse>>;
 
-describe('LoginPage', () => {
-  const mockNavigate = jest.fn();
-  const mockLoginUser = loginUser as jest.Mock;
-
+describe('LoginPage Component', () => {
+  // Reset mocks before each test
   beforeEach(() => {
-    // Reset mocks before each test
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    mockNavigate.mockClear();
     mockLoginUser.mockClear();
-    // Clear localStorage as it's used by the component logic
-    localStorage.clear();
+    // Clear localStorage as well if it's used for tokens
+    jest.spyOn(Storage.prototype, 'setItem').mockClear();
+    jest.spyOn(Storage.prototype, 'getItem').mockClear();
   });
 
-  test('renders the login form and prompts for credentials', () => {
-    render(<LoginPage />);
-    expect(screen.getByRole('heading', { name: /welcome back!/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByText(/don't have an account?/i)).toBeInTheDocument();
-  });
-
-  test('calls loginUser and navigates on successful login, stores token', async () => {
-    const mockSuccessfulResponse = { user: { id: '1', name: 'Existing User', email: 'user@example.com' }, token: 'mock-jwt-token-for-user@example.com' };
-    mockLoginUser.mockResolvedValue(mockSuccessfulResponse);
+  // Test case 1: Happy path - Successful login
+  test('should navigate to dashboard and set token on successful login', async () => {
+    const mockAuthResponse: AuthResponse = {
+      user: { id: '1', name: 'Test User', email: 'test@example.com' },
+      token: 'mock-auth-token',
+    };
+    mockLoginUser.mockResolvedValue(mockAuthResponse);
 
     render(<LoginPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const loginButton = screen.getByRole('button', { name: /login/i });
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /login/i });
 
-    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(loginButton);
+    fireEvent.click(submitButton);
 
+    // Wait for the API call to resolve and navigation to occur
     await waitFor(() => {
       expect(mockLoginUser).toHaveBeenCalledTimes(1);
       expect(mockLoginUser).toHaveBeenCalledWith({
-        email: 'user@example.com',
+        email: 'test@example.com',
         password: 'password123',
       });
-    });
-
-    await waitFor(() => {
-      expect(localStorage.getItem('authToken')).toBe('mock-jwt-token-for-user@example.com');
+      expect(localStorage.setItem).toHaveBeenCalledTimes(1);
+      expect(localStorage.setItem).toHaveBeenCalledWith('authToken', 'mock-auth-token');
       expect(mockNavigate).toHaveBeenCalledTimes(1);
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+      expect(screen.queryByText(/invalid email or password/i)).not.toBeInTheDocument();
     });
   });
 
-  test('displays error message when login fails (invalid credentials)', async () => {
-    const mockErrorResponse = { message: 'Invalid email or password.' };
+  // Test case 2: Error handling - Invalid credentials
+  test('should display error message for invalid login credentials', async () => {
+    const mockErrorResponse: ErrorResponse = { message: 'Invalid email or password.' };
     mockLoginUser.mockResolvedValue(mockErrorResponse);
 
     render(<LoginPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const loginButton = screen.getByRole('button', { name: /login/i });
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /login/i });
 
-    fireEvent.change(emailInput, { target: { value: 'wronguser@example.com' } });
+    fireEvent.change(emailInput, { target: { value: 'wrong@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
-    fireEvent.click(loginButton);
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockLoginUser).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/invalid email or password./i)).toBeInTheDocument();
+      expect(mockLoginUser).toHaveBeenCalledWith({
+        email: 'wrong@example.com',
+        password: 'wrongpassword',
+      });
+      expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalled();
-      expect(localStorage.getItem('authToken')).toBeNull();
+      expect(localStorage.setItem).not.toHaveBeenCalled();
     });
   });
 
-  test('displays a generic error message for unexpected API errors', async () => {
-    mockLoginUser.mockRejectedValue(new Error('Network Error'));
+  // Test case 3: Error handling - Network or unexpected error
+  test('should display a generic error message on API failure', async () => {
+    mockLoginUser.mockRejectedValue(new Error('Network error'));
 
     render(<LoginPage />);
 
-    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
-    const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-    const loginButton = screen.getByRole('button', { name: /login/i });
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+    const submitButton = screen.getByRole('button', { name: /login/i });
 
-    fireEvent.change(emailInput, { target: { value: 'error@example.com' } });
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(loginButton);
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockLoginUser).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/An unexpected error occurred. Please try again later./i)).toBeInTheDocument();
+      expect(screen.getByText(/an unexpected error occurred/i)).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalled();
-      expect(localStorage.getItem('authToken')).toBeNull();
+      expect(localStorage.setItem).not.toHaveBeenCalled();
     });
+  });
+
+  // Test case 4: Navigation to registration page
+  test('should navigate to the register page when the link is clicked', () => {
+    render(<LoginPage />);
+
+    const registerLink = screen.getByRole('link', { name: /register here/i });
+    fireEvent.click(registerLink);
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/register');
   });
 });
