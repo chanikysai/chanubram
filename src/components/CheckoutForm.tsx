@@ -1,10 +1,9 @@
 import React, { useState, FormEvent } from 'react';
 
-// Define the shape for shipping address
 export interface ShippingAddress {
   fullName: string;
   addressLine1: string;
-  addressLine2?: string;
+  addressLine2?: string; // Optional
   city: string;
   state: string;
   postalCode: string;
@@ -28,7 +27,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onSubmit, isLoading, onErro
     country: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prevState => ({
       ...prevState,
@@ -38,22 +37,20 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onSubmit, isLoading, onErro
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-
     // Basic validation
     if (!formData.fullName || !formData.addressLine1 || !formData.city || !formData.state || !formData.postalCode || !formData.country) {
-      const errorMsg = 'Please fill in all required shipping address fields.';
-      onError(errorMsg);
+      onError('Please fill in all required shipping address fields.');
       return;
     }
-    
-    // You might add more specific validation, e.g., for postal code format or country codes.
+    // Add more specific validation if needed (e.g., postal code format, country codes)
 
+    onError(''); // Clear any previous errors
     onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="checkout-form" style={{ maxWidth: '600px', margin: '20px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Shipping Information</h2>
+      <h2>Shipping Address</h2>
 
       <div className="form-group" style={{ marginBottom: '15px' }}>
         <label htmlFor="fullName" style={{ display: 'block', marginBottom: '5px' }}>Full Name:</label>
@@ -110,7 +107,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onSubmit, isLoading, onErro
             style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
           />
         </div>
-        <div style={{ flex: '1', marginLeft: '10px' }}>
+        <div style={{ flex: '1', marginRight: '10px' }}>
           <label htmlFor="state" style={{ display: 'block', marginBottom: '5px' }}>State/Province:</label>
           <input
             type="text"
@@ -157,9 +154,9 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onSubmit, isLoading, onErro
       <button
         type="submit"
         disabled={isLoading}
-        style={{ width: '100%', padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: isLoading ? 'not-allowed' : 'pointer', fontSize: '16px' }}
+        style={{ width: '100%', padding: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: isLoading ? 'not-allowed' : 'pointer', fontSize: '16px' }}
       >
-        {isLoading ? 'Processing...' : 'Continue to Payment'}
+        {isLoading ? 'Saving...' : 'Continue to Payment'}
       </button>
     </form>
   );

@@ -1,4 +1,5 @@
 import React, { useState, FormEvent } from 'react';
+import { ShippingAddress } from './CheckoutForm'; // Import ShippingAddress type
 
 // Define the shape for payment details
 interface PaymentDetails {
@@ -10,14 +11,13 @@ interface PaymentDetails {
 }
 
 interface PaymentFormProps {
-  onSubmit: (paymentData: PaymentDetails) => void;
+  onSubmit: (paymentData: PaymentDetails, shippingData: ShippingAddress) => void; // Added shippingData
   isLoading: boolean;
   onError: (error: string) => void;
-  // We might need to pass shipping data to this form if payment provider requires it
-  // shippingData: ShippingAddress; 
+  shippingData: ShippingAddress; // Receive shippingData as prop
 }
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ onSubmit, isLoading, onError }) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({ onSubmit, isLoading, onError, shippingData }) => { // Destructure shippingData
   const [paymentMethod, setPaymentMethod] = useState<'creditCard' | 'paypal'>('creditCard');
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
     paymentMethod: 'creditCard',
@@ -59,7 +59,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onSubmit, isLoading, onError 
       }
     }
 
-    onSubmit(paymentDetails);
+    onSubmit(paymentDetails, shippingData); // Pass shippingData to onSubmit
   };
 
   return (

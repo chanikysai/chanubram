@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Assuming react-router-dom is used for navigation
 
-import CheckoutForm, { ShippingAddress } from '../components/CheckoutForm';
+import CheckoutForm, { ShippingAddress } from '../components/CheckoutForm'; // Import CheckoutForm
 import PaymentForm, { PaymentDetails } from '../components/PaymentForm';
 import CouponInput from '../components/CouponInput'; // Import the CouponInput component
 import { processPayment } from '../services/paymentApi'; // Import the payment service
@@ -81,7 +81,8 @@ const CheckoutPage: React.FC = () => {
     setErrorMessage(null); // Clear payment errors
     setCouponError(null); // Clear coupon errors
     setCouponSuccessMessage(null); // Clear coupon success message
-    setCurrentStep(CheckoutStep.Review); // Move to Review step to apply coupon
+    // Moved to Review step to allow coupon application before payment confirmation
+    setCurrentStep(CheckoutStep.Review); 
   };
 
   // Handle applying coupon
@@ -126,19 +127,19 @@ const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePaymentSubmit = async (data: PaymentDetails) => {
+  const handlePaymentSubmit = async (data: PaymentDetails, shippingDataArg: ShippingAddress) => { // Accepted shippingDataArg
     setPaymentData(data);
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
       // Ensure shippingData is available before processing payment
-      if (!shippingData) {
+      if (!shippingDataArg) { // Use shippingDataArg
         throw new Error('Shipping information is missing.');
       }
       
       // Pass the final order summary with applied discount to the payment API
-      const response = await processPayment(data, shippingData, orderSummary);
+      const response = await processPayment(data, shippingDataArg, orderSummary); // Pass shippingDataArg and orderSummary
 
       if (response.success) {
         setTransactionId(response.transactionId);
@@ -147,7 +148,8 @@ const CheckoutPage: React.FC = () => {
         // clearCart(); 
       } else {
         setErrorMessage(response.message);
-        setCurrentStep(CheckoutStep.Review); // Stay on review step if there's an error
+        // Revert to review step to allow user to correct payment or re-apply coupon
+        setCurrentStep(CheckoutStep.Review); 
       }
     } catch (error) {
       console.error("Payment processing failed:", error);
@@ -160,10 +162,15 @@ const CheckoutPage: React.FC = () => {
 
   const handleReviewSubmit = () => {
     // Move to payment processing step
-    if (paymentData) { // Ensure payment data is set
-      handlePaymentSubmit(paymentData);
+    if (paymentData && shippingData) { // Ensure both payment and shipping data are set
+      // Use handlePaymentSubmit to process, passing all necessary data
+      handlePaymentSubmit(paymentData, shippingData); 
+    } else if (!paymentData) {
+      // If payment data is missing, go back to payment step
+      setCurrentStep(CheckoutStep.Payment);
     } else {
-      setCurrentStep(CheckoutStep.Payment); // Go back to payment if not set
+      // If shipping data is missing (shouldn't happen if flow is correct), go back to shipping
+      setCurrentStep(CheckoutStep.Shipping);
     }
   };
 
@@ -196,12 +203,17 @@ const CheckoutPage: React.FC = () => {
           </div>
         );
       case CheckoutStep.Payment:
+        // Ensure shippingData is available before rendering PaymentForm
+        if (!shippingData) {
+          // Redirect or show an error if shipping data is missing (should not happen in normal flow)
+          return <div>Error: Shipping information not found.</div>;
+        }
         return (
           <PaymentForm 
             onSubmit={handlePaymentSubmit} 
             isLoading={isLoading} 
             onError={setErrorMessage}
-            // shippingData={shippingData!} // Pass shipping data if needed by PaymentForm
+            shippingData={shippingData} // Pass shippingData to PaymentForm
           />
         );
       case CheckoutStep.Review:
