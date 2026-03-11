@@ -1,52 +1,18 @@
+datasource db {
+  provider = "postgresql"
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql" // Or your preferred database provider
-}
-
-// Placeholder for User model - actual implementation might differ
-// In a real application, this would be more robust and linked to authentication
-model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  // These fields define the relationship from User to Event
-  proposals        Event[] @relation("EventProposer") // Events where this user is the proposer
-  receivedEvents   Event[] @relation("EventReceiver") // Events where this user is the receiver
-}
-
-enum EventStatus {
-  PROPOSED
-  ACCEPTED
-  REJECTED
-  CANCELLED
-}
-
-model Event {
-  id           String     @id @default(cuid())
-  title        String
-  description  String?
-  dateTime     DateTime
-  location     String?
-  status       EventStatus
-  proposerId   String
-  receiverId   String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  // These fields correctly link Event back to User using the defined relation names
-  proposer     User       @relation("EventProposer", fields: [proposerId], references: [id])
-  receiver     User       @relation("EventReceiver", fields: [receiverId], references: [id])
-}
-
-// New model for Special Occasions
-model Occasion {
-  id           String   @id @default(cuid())
-  name         String
-  date         DateTime
-  reminderDate DateTime? // Optional reminder date
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Goal {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  targetDate  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  status      String    @default("active")
+  progress    String?
 }
