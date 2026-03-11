@@ -1,76 +1,42 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql" // Or your preferred database provider
+}
+
+// Placeholder for User model - actual implementation might differ
+// In a real application, this would be more robust and linked to authentication
 model User {
-  id            String    @id @default(uuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  bio           String?
-  password      String? // Added for credentials provider
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Partner relationship: Symmetric one-to-one self-relation
-  // partnerId stores the ID of the user's partner.
-  partnerId String? @unique
-  // 'Partner' relation: Defines the FK on this model (User A) and references the PK of the related model (User B's id).
-  Partner User? @relation("UserPartnerRelation", fields: [partnerId], references: [id])
-  // 'partnerOf' relation: Defines the inverse relation, referring to the user whose partnerId points to THIS user.
-  // Prisma infers the inverse reference when fields and references are defined on one side.
-  partnerOf User? @relation("UserPartnerRelation")
-
-
-  // Invites sent by this user
-  SentInvites Invite[] @relation("InviterRelation")
-
-  // Memories created by this user
-  Memories Memory[]
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  // These fields define the relationship from User to Event
+  proposals        Event[] @relation("EventProposer") // Events where this user is the proposer
+  receivedEvents   Event[] @relation("EventReceiver") // Events where this user is the receiver
 }
 
-model Invite {
-  id        String   @id @default(uuid())
-  code      String   @unique // The unique invite code
-  expiresAt DateTime // When the invite code expires
-
-  // User who sent the invite
-  inviterId String
-  Inviter   User     @relation("InviterRelation", fields: [inviterId], references: [id])
-
-  createdAt DateTime @default(now())
+enum EventStatus {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  CANCELLED
 }
 
-// Model for memories
-model Memory {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  date        DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Event {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  dateTime     DateTime
+  location     String?
+  status       EventStatus
+  proposerId   String
+  receiverId   String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  // Foreign key to the User who created the memory
-  userId String
-  User   User     @relation(fields: [userId], references: [id])
-
-  // Photos associated with the memory
-  Photos Photo[]
-}
-
-// Model for photos associated with memories
-model Photo {
-  id       String @id @default(uuid())
-  url      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Foreign key to the memory this photo belongs to
-  memoryId String
-  Memory   Memory   @relation(fields: [memoryId], references: [id])
+  // These fields correctly link Event back to User using the defined relation names
+  proposer     User       @relation("EventProposer", fields: [proposerId], references: [id])
+  receiver     User       @relation("EventReceiver", fields: [receiverId], references: [id])
 }
