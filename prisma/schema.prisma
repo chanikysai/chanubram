@@ -40,3 +40,13 @@ model Event {
   proposer     User       @relation("EventProposer", fields: [proposerId], references: [id])
   receiver     User       @relation("EventReceiver", fields: [receiverId], references: [id])
 }
+
+// New model for Special Occasions
+model Occasion {
+  id           String   @id @default(cuid())
+  name         String
+  date         DateTime
+  reminderDate DateTime? // Optional reminder date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
