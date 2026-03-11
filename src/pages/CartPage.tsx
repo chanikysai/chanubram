@@ -1,10 +1,10 @@
 // src/pages/CartPage.tsx
 import React, { useState } from 'react';
-import { useCart } from '../context/CartContext';
-import CartItemComponent from '../components/CartItem';
+import { useCart, CartItem } from '../context/CartContext'; // Import CartItem type
+import CartItemComponent from '../components/CartItem'; // Import the newly created component
 import CartSummary from '../components/CartSummary';
-import CouponInput from '../components/CouponInput'; // Import CouponInput
-import { CouponApplicationResult } from '../types/coupon'; // Import the type
+import CouponInput from '../components/CouponInput'; // Assuming this component exists or will be created if not already
+import { CouponApplicationResult } from '../types/coupon'; // Assuming this type exists or will be defined
 
 const CartPage: React.FC = () => {
   const { items, updateQuantity, removeItem } = useCart();
@@ -26,7 +26,7 @@ const CartPage: React.FC = () => {
 
     // Simulate API call for coupon validation
     // In a real application, this would involve an API request.
-    console.log(\`Attempting to apply coupon: \${couponCode}\`);
+    console.log(`Attempting to apply coupon: ${couponCode}`);
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
 
     if (couponCode.toLowerCase() === 'sale10') {
@@ -38,7 +38,7 @@ const CartPage: React.FC = () => {
         couponCode: couponCode,
       });
       console.log('Coupon applied successfully.');
-    } else if (couponCode.toLowerCase() === 'free shipping') {
+    } else if (couponCode.toLowerCase() === 'freeship') { // Changed to 'freeship' for common coupon codes
       setCouponResult({
         success: true,
         message: 'Free shipping applied!',
@@ -62,24 +62,22 @@ const CartPage: React.FC = () => {
         <p>Your shopping cart is currently empty. Why not add some products?</p>
       ) : (
         <div style={{ display: 'flex', gap: '20px', flexDirection: 'column-reverse' }}>
+          {/* Cart Summary on the right (or bottom on mobile) */}
           <div style={{ flex: 1 }}>
             <CartSummary items={items} total={total} discountAmount={couponResult?.discountAmount || 0} couponMessage={couponResult?.message} />
           </div>
+          {/* Cart Items List on the left (or top on mobile) */}
           <div style={{ flex: 2 }}>
             {/* Coupon Input Component */}
             <CouponInput
-              onApplyCoupon={handleApplyCoupon} // Changed prop name
+              onApplyCoupon={handleApplyCoupon}
               isLoading={isCouponLoading}
-              error={couponError} // Pass couponError as error
-              successMessage={couponResult?.message} // Pass coupon message as successMessage
+              error={couponError}
+              successMessage={couponResult?.message}
             />
-            {/* couponError is now handled by CouponInput, so this explicit render might be redundant if CouponInput displays it.
-                However, keeping it for now to ensure the error is visible if CouponInput's display isn't configured.
-                If CouponInput's internal display is sufficient, this can be removed. */}
-            {/* {couponError && <p className="text-red-500 text-sm mt-2">{couponError}</p>} */}
-
-            {/* Cart Items */}
-            {items.map(item => (
+            
+            {/* Render CartItemComponent for each item in the cart */}
+            {items.map((item: CartItem) => (
               <CartItemComponent
                 key={item.id}
                 item={item}
@@ -95,4 +93,3 @@ const CartPage: React.FC = () => {
 };
 
 export default CartPage;
-
