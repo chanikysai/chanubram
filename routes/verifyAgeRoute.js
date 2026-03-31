@@ -26,18 +26,19 @@ function calculateAge(dobString) {
 }
 
 // Endpoint to determine age bracket and associated content experience
+// Modified for Feature 1.10: process DOB and discard it by returning only status.
 router.post('/verify-age', (req, res) => {
-    const { dob } = req.body; // Removed minAge as we are defining brackets
+    const { dob } = req.body;
 
     // Validate DOB
     if (!dob) {
-        return res.status(400).json({ currentAge: null, bracket: null, content: null, message: 'DOB is required.' });
+        return res.status(400).json({ status: 'error', message: 'DOB is required.' });
     }
 
     const currentAge = calculateAge(dob);
 
     if (currentAge === -1) {
-        return res.status(400).json({ currentAge: null, bracket: null, content: null, message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
+        return res.status(400).json({ status: 'error', message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
     }
 
     let determinedBracket = null;
@@ -54,17 +55,16 @@ router.post('/verify-age', (req, res) => {
     }
     
     // If no bracket is found (e.g., due to unexpected age or bracket definition issues),
-    // return nulls for bracket and content. This should not happen with current definitions.
+    // return an error. This should not happen with current definitions.
     if (!determinedBracket) {
-        // For robustness, ensure we always return a response structure.
-        // With current definitions (min 0, max Infinity), this branch is unlikely.
-        // If it were possible, a default bracket or an error might be appropriate.
+        return res.status(400).json({ status: 'error', message: 'Could not determine age bracket for the provided DOB.' });
     }
 
+    // Feature 1.10: Process DOB and immediately discard it by returning a simple success status.
+    // The DOB and derived age/bracket are not returned or persisted.
     res.json({
-        currentAge: currentAge,
-        bracket: determinedBracket,
-        content: determinedContent
+        status: 'success',
+        message: 'DOB processed and verified.'
     });
 });
 
