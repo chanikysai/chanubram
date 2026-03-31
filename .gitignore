@@ -1,0 +1,5 @@
+.trippie/
+node_modules
+.next
+dist
+.agilint

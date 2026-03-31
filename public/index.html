@@ -92,7 +92,7 @@
       margin: 15px 0 5px;
       font-size: 1rem;
     }
-    input {
+    input[type="text"] { /* Target text inputs for masking */
       width: 100%;
       padding: 12px;
       margin-bottom: 20px;
@@ -151,13 +151,13 @@
   </div>
 
   <div class="form-section">
-    <form id="dobForm" action="/check-dob" method="POST">
+    <form id="dob-form" action="/check-dob" method="POST">
       <h2>Secret Page Access</h2>
       <p>Only Bram can enter this secret page. Please enter your Date of Birth.</p>
-      <label for="bramDob">Bram's Date of Birth (YYYY-MM-DD):</label>
-      <input type="date" id="bramDob" name="bramDob" required>
-      <label for="chanuDob">Chanu's Date of Birth (YYYY-MM-DD):</label>
-      <input type="date" id="chanuDob" name="chanuDob" required>
+      <label for="herDate">Bram's Date of Birth (MM/DD/YYYY):</label>
+      <input type="text" id="herDate" name="herDate" placeholder="MM/DD/YYYY" required>
+      <label for="yourDate">Chanu's Date of Birth (MM/DD/YYYY):</label>
+      <input type="text" id="yourDate" name="yourDate" placeholder="MM/DD/YYYY" required>
       <input type="hidden" id="latitude" name="latitude">
       <input type="hidden" id="longitude" name="longitude">
       <button type="submit">Enter the Secret Page</button>
@@ -168,31 +168,6 @@
     <p>✨ New features will be updated soon! Chanu is working on making this the most loved website. Stay tuned! ❤️</p>
   </div>
 
-  <script>
-    function getLocation(event) {
-      event.preventDefault(); // Stop form submission until location is retrieved
-  
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-  
-            document.getElementById("latitude").value = latitude;
-            document.getElementById("longitude").value = longitude;
-  
-            console.log(`Captured Location - Latitude: ${latitude}, Longitude: ${longitude}`);
-  
-            event.target.submit(); // Submit the form after setting location
-          },
-          (error) => {
-            console.error("Error getting location:", error.message);
-            alert("Please allow location access to proceed.");
-          }
-        );
-      } else {
-        alert("Geolocation is not supported by your browser.");
-      }
-    }
-  </script>
-  
+  <script src="script.js"></script>
+</body>
+</html>
