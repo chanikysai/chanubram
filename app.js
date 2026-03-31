@@ -36,16 +36,35 @@ app.get('/special', (req, res) => {
 app.post('/check-dob', (req, res) => {
     const { bramDob, chanuDob, latitude, longitude } = req.body;
   
+    // Input validation for dates
+    if (!bramDob || isNaN(new Date(bramDob).getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing Bram DOB. Please provide a valid date string.' });
+    }
+    if (!chanuDob || isNaN(new Date(chanuDob).getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing Chanu DOB. Please provide a valid date string.' });
+    }
+  
+    // Input validation for coordinates
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+  
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing latitude. Please provide a number between -90 and 90.' });
+    }
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing longitude. Please provide a number between -180 and 180.' });
+    }
+  
     const formattedBramDob = normalizeDate(bramDob);
     const formattedChanuDob = normalizeDate(chanuDob);
   
     console.log(`Received Bram's Date: ${formattedBramDob}, Chanu's Date: ${formattedChanuDob}`);
-    console.log(`User Location - Latitude: ${latitude}, Longitude: ${longitude}`);
+    console.log(`User Location - Latitude: ${lat}, Longitude: ${lon}`);
   
     if (formattedBramDob === BRAM_DOB && formattedChanuDob === CHANU_DOB) {
       res.sendFile(path.join(__dirname, 'public/success.html'));
     } else {
-      res.json({ success: false, message: "Incorrect Dates. Try Again." });
+      res.status(400).json({ success: false, message: "Incorrect Dates provided. Please check Bram's and Chanu's dates." });
     }
   });
   
