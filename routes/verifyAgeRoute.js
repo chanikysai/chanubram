@@ -45,14 +45,15 @@ router.post('/verify-age', (req, res) => {
     // Determine if the user meets the threshold
     const meetsThreshold = currentAge >= parsedMinAge;
 
-    let message;
     if (meetsThreshold) {
-        message = `User is ${currentAge} years old. Meets minimum age of ${parsedMinAge}.`;
+        // Redirect to success page if age requirement is met
+        // Assuming '/success' maps to public/success.html in app.js
+        res.redirect('/success'); 
     } else {
-        message = `User is ${currentAge} years old. Does not meet minimum age of ${parsedMinAge}.`;
+        // Redirect to special/denied page if age requirement is not met
+        // Assuming '/special' maps to public/special.html in app.js
+        res.redirect('/special'); 
     }
-
-    res.status(200).json({ meetsThreshold, currentAge, minimumAge: parsedMinAge, message });
 });
 
 module.exports = router;
