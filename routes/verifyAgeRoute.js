@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
+// --- Feature 1.8: Age Brackets ---
+// Define age brackets and associated content experiences
+const AGE_BRACKETS = {
+    UNDER_18: { minAge: 0, maxAge: 17, content: 'youth_content' },
+    EIGHTEEN_TO_TWENTY_FIVE: { minAge: 18, maxAge: 25, content: 'young_adult_content' },
+    OVER_TWENTY_FIVE: { minAge: 26, maxAge: Infinity, content: 'adult_content' }
+};
+
 // Helper function to calculate age from DOB
 function calculateAge(dobString) {
     const today = new Date();
@@ -17,44 +25,47 @@ function calculateAge(dobString) {
     return age;
 }
 
+// Endpoint to determine age bracket and associated content experience
 router.post('/verify-age', (req, res) => {
-    const { dob, minAge } = req.body;
+    const { dob } = req.body; // Removed minAge as we are defining brackets
 
     // Validate DOB
     if (!dob) {
-        return res.status(400).json({ meetsThreshold: false, currentAge: null, minimumAge: null, message: 'DOB is required.' });
+        return res.status(400).json({ currentAge: null, bracket: null, content: null, message: 'DOB is required.' });
     }
 
     const currentAge = calculateAge(dob);
 
     if (currentAge === -1) {
-        return res.status(400).json({ meetsThreshold: false, currentAge: null, minimumAge: null, message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
+        return res.status(400).json({ currentAge: null, bracket: null, content: null, message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
     }
 
-    // Validate minAge
-    if (minAge === undefined || minAge === null) {
-        return res.status(400).json({ meetsThreshold: false, currentAge, minimumAge: null, message: 'Minimum age threshold is required.' });
+    let determinedBracket = null;
+    let determinedContent = null;
+
+    // Determine the age bracket
+    for (const bracketKey in AGE_BRACKETS) {
+        const bracket = AGE_BRACKETS[bracketKey];
+        if (currentAge >= bracket.minAge && currentAge <= bracket.maxAge) {
+            determinedBracket = bracketKey; // Use the key name for identification
+            determinedContent = bracket.content;
+            break; // Found the bracket, exit loop
+        }
+    }
+    
+    // If no bracket is found (e.g., due to unexpected age or bracket definition issues),
+    // return nulls for bracket and content. This should not happen with current definitions.
+    if (!determinedBracket) {
+        // For robustness, ensure we always return a response structure.
+        // With current definitions (min 0, max Infinity), this branch is unlikely.
+        // If it were possible, a default bracket or an error might be appropriate.
     }
 
-    const parsedMinAge = parseInt(minAge, 10);
-
-    if (isNaN(parsedMinAge) || parsedMinAge < 0) {
-        return res.status(400).json({ meetsThreshold: false, currentAge, minimumAge: null, message: 'Minimum age must be a non-negative number.' });
-    }
-
-    // Determine if the user meets the threshold
-    const meetsThreshold = currentAge >= parsedMinAge;
-
-    if (meetsThreshold) {
-        // Redirect to success page if age requirement is met
-        // Assuming '/success' maps to public/success.html in app.js
-        res.redirect('/success'); 
-    } else {
-        // Redirect to special/denied page if age requirement is not met
-        // Assuming '/special' maps to public/special.html in app.js
-        res.redirect('/special'); 
-    }
+    res.json({
+        currentAge: currentAge,
+        bracket: determinedBracket,
+        content: determinedContent
+    });
 });
 
 module.exports = router;
-
