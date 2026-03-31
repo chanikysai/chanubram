@@ -68,6 +68,12 @@ app.post('/check-dob', (req, res) => {
     }
   });
   
+// Import the new API route handler
+const verifyAgeRoute = require('./routes/verifyAgeRoute');
+
+// Mount the new API route handler
+app.use('/api', verifyAgeRoute);
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
