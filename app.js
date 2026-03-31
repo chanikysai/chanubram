@@ -27,7 +27,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// Route for the special page
+// Route for the special page - this is now directly accessible
+// Feature 1.9: This page hosts a specific message for adults.
 app.get('/special', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/special.html'));
 });
@@ -68,11 +69,21 @@ app.post('/check-dob', (req, res) => {
     }
   });
   
-// Import the new API route handler
+// Import the existing API route handler for age verification
 const verifyAgeRoute = require('./routes/verifyAgeRoute');
 
-// Mount the new API route handler
+// Mount the existing API route handler
 app.use('/api', verifyAgeRoute);
+
+// --- Feature 1.9 Implementation ---
+// Import the new API route handler for age-specific content
+const ageContentRoute = require('./routes/ageContentRoute');
+
+// Mount the new API route handler for age-specific content
+// This endpoint provides JSON data based on age brackets.
+// For adults, it hints at the existence of the static /special page.
+app.use('/api/v1', ageContentRoute);
+// --- End Feature 1.9 ---
 
 // Start the server
 app.listen(port, () => {
