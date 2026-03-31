@@ -5,8 +5,9 @@ const router = express.Router();
 function calculateAge(dobString) {
     const today = new Date();
     const dob = new Date(dobString);
+    // Check if the date is valid
     if (isNaN(dob.getTime())) {
-        return -1; // Invalid date
+        return -1; // Indicate invalid date
     }
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
@@ -17,25 +18,42 @@ function calculateAge(dobString) {
 }
 
 router.post('/verify-age', (req, res) => {
-    const { dob } = req.body;
+    const { dob, minAge } = req.body;
 
+    // Validate DOB
     if (!dob) {
-        return res.status(400).json({ isAdult: false, message: 'DOB is required.' });
+        return res.status(400).json({ meetsThreshold: false, currentAge: null, minimumAge: null, message: 'DOB is required.' });
     }
 
-    const age = calculateAge(dob);
+    const currentAge = calculateAge(dob);
 
-    if (age === -1) {
-        return res.status(400).json({ isAdult: false, message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
+    if (currentAge === -1) {
+        return res.status(400).json({ meetsThreshold: false, currentAge: null, minimumAge: null, message: 'Invalid DOB format. Please use YYYY-MM-DD or a parseable date string.' });
     }
 
-    const MIN_AGE = 18; // Minimum age requirement
+    // Validate minAge
+    if (minAge === undefined || minAge === null) {
+        return res.status(400).json({ meetsThreshold: false, currentAge, minimumAge: null, message: 'Minimum age threshold is required.' });
+    }
 
-    if (age >= MIN_AGE) {
-        res.status(200).json({ isAdult: true, message: `User is ${age} years old. Verified.` });
+    const parsedMinAge = parseInt(minAge, 10);
+
+    if (isNaN(parsedMinAge) || parsedMinAge < 0) {
+        return res.status(400).json({ meetsThreshold: false, currentAge, minimumAge: null, message: 'Minimum age must be a non-negative number.' });
+    }
+
+    // Determine if the user meets the threshold
+    const meetsThreshold = currentAge >= parsedMinAge;
+
+    let message;
+    if (meetsThreshold) {
+        message = `User is ${currentAge} years old. Meets minimum age of ${parsedMinAge}.`;
     } else {
-        res.status(400).json({ isAdult: false, message: `User is ${age} years old. Below the minimum age of ${MIN_AGE}.` });
+        message = `User is ${currentAge} years old. Does not meet minimum age of ${parsedMinAge}.`;
     }
+
+    res.status(200).json({ meetsThreshold, currentAge, minimumAge: parsedMinAge, message });
 });
 
 module.exports = router;
+
