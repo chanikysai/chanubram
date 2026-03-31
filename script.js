@@ -116,8 +116,8 @@ async function submitFormData(formElement) {
     const longitude = document.getElementById('longitude').value;
 
     // Perform new client-side date validation
-    const herDateError = validateDateInput(herDate, 'Bram's Date of Birth');
-    const yourDateError = validateDateInput(yourDate, 'Chanu's Date of Birth');
+    const herDateError = validateDateInput(herDate, "Bram's Date of Birth");
+    const yourDateError = validateDateInput(yourDate, "Chanu's Date of Birth");
 
     if (herDateError || yourDateError) {
         alert(herDateError || yourDateError); // Show the first error encountered

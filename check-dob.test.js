@@ -2,6 +2,7 @@
 const request = require('supertest');
 const express = require('express');
 const path = require('path');
+const { expect } = require('chai'); // Use chai assertions
 
 // Assume app.js is in the same directory and exports the express app
 // If app.js is in a different location, adjust the require path accordingly.
@@ -10,7 +11,7 @@ const app = require('./app'); // Assuming app.js is in the root
 describe('POST /check-dob', () => {
 
     // Happy Path Test
-    test('should return success.html for valid DOBs and coordinates', async () => {
+    it('should return success.html for valid DOBs and coordinates', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -22,7 +23,7 @@ describe('POST /check-dob', () => {
 
         // The server sends the file, so we check for 200 status and potentially the file path if supertest exposed it,
         // but checking the status code is the primary way to confirm success for file sends.
-        expect(response.status).toBe(200);
+        expect(response.status).to.equal(200);
         // Optionally, if we were serving JSON for success, we'd check content.
         // For serving a file, checking status is sufficient.
     });
@@ -30,7 +31,7 @@ describe('POST /check-dob', () => {
     // Error Handling Tests
 
     // Test Case 1: Missing Bram DOB
-    test('should return 400 for missing Bram DOB', async () => {
+    it('should return 400 for missing Bram DOB', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -40,13 +41,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Bram DOB. Please provide a valid date string.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Bram DOB. Please provide a valid date string.');
     });
 
     // Test Case 2: Invalid Bram DOB format
-    test('should return 400 for invalid Bram DOB format', async () => {
+    it('should return 400 for invalid Bram DOB format', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -56,13 +57,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Bram DOB. Please provide a valid date string.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Bram DOB. Please provide a valid date string.');
     });
     
     // Test Case 3: Invalid Bram DOB date (e.g., day out of range)
-    test('should return 400 for invalid Bram DOB date', async () => {
+    it('should return 400 for invalid Bram DOB date', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -72,13 +73,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Bram DOB. Please provide a valid date string.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Bram DOB. Please provide a valid date string.');
     });
 
     // Test Case 4: Missing Chanu DOB
-    test('should return 400 for missing Chanu DOB', async () => {
+    it('should return 400 for missing Chanu DOB', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -88,13 +89,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Chanu DOB. Please provide a valid date string.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Chanu DOB. Please provide a valid date string.');
     });
 
     // Test Case 5: Invalid Chanu DOB format
-    test('should return 400 for invalid Chanu DOB format', async () => {
+    it('should return 400 for invalid Chanu DOB format', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -104,13 +105,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Chanu DOB. Please provide a valid date string.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Chanu DOB. Please provide a valid date string.');
     });
 
     // Test Case 6: Invalid Latitude (non-numeric)
-    test('should return 400 for invalid latitude (non-numeric)', async () => {
+    it('should return 400 for invalid latitude (non-numeric)', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -120,13 +121,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing latitude. Please provide a number between -90 and 90.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing latitude. Please provide a number between -90 and 90.');
     });
 
     // Test Case 7: Invalid Latitude (out of range)
-    test('should return 400 for invalid latitude (out of range)', async () => {
+    it('should return 400 for invalid latitude (out of range)', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -136,13 +137,13 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing latitude. Please provide a number between -90 and 90.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing latitude. Please provide a number between -90 and 90.');
     });
 
     // Test Case 8: Invalid Longitude (non-numeric)
-    test('should return 400 for invalid longitude (non-numeric)', async () => {
+    it('should return 400 for invalid longitude (non-numeric)', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -152,13 +153,13 @@ describe('POST /check-dob', () => {
                 longitude: 'not-a-number'
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing longitude. Please provide a number between -180 and 180.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing longitude. Please provide a number between -180 and 180.');
     });
 
     // Test Case 9: Invalid Longitude (out of range)
-    test('should return 400 for invalid longitude (out of range)', async () => {
+    it('should return 400 for invalid longitude (out of range)', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -168,13 +169,13 @@ describe('POST /check-dob', () => {
                 longitude: 190.0 // Out of range
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing longitude. Please provide a number between -180 and 180.');
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing longitude. Please provide a number between -180 and 180.');
     });
 
     // Test Case 10: Incorrect Dates provided
-    test('should return 400 for incorrect DOBs', async () => {
+    it('should return 400 for incorrect DOBs', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({
@@ -184,19 +185,19 @@ describe('POST /check-dob', () => {
                 longitude: -118.2437
             });
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe("Incorrect Dates provided. Please check Bram's and Chanu's dates.");
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal("Incorrect Dates provided. Please check Bram's and Chanu's dates.");
     });
     
     // Test Case 11: Missing all fields
-    test('should return 400 when all fields are missing', async () => {
+    it('should return 400 when all fields are missing', async () => {
         const response = await request(app)
             .post('/check-dob')
             .send({}); // Empty body
 
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty('success', false);
-        expect(response.body.message).toBe('Invalid or missing Bram DOB. Please provide a valid date string.'); // First validation error encountered
+        expect(response.status).to.equal(400);
+        expect(response.body).to.have.property('success', false);
+        expect(response.body.message).to.equal('Invalid or missing Bram DOB. Please provide a valid date string.'); // First validation error encountered
     });
 });

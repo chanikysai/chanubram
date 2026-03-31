@@ -57,7 +57,8 @@ function validateDateInput(dateString, fieldName) {
     const year = parseInt(match[3], 10);
 
     // 1. Year Range Check (e.g., 1900 to current year)
-    const currentYear = new Date().getFullYear(); // This will use our MockDate
+    // Use the mocked Date.getFullYear() for consistency in tests
+    const currentYear = new Date().getFullYear(); 
     if (year < 1900 || year > currentYear) {
         return `${fieldName}: Year must be between 1900 and ${currentYear}.`;
     }
@@ -248,24 +249,24 @@ describe('Date Validation Functions', () => {
 
     // --- Tests for isLeapYear ---
     describe('isLeapYear', () => {
-        test('should return true for leap years divisible by 4 but not by 100', () => {
-            expect(isLeapYear(2024)).toBe(true);
-            expect(isLeapYear(2008)).toBe(true);
+        it('should return true for leap years divisible by 4 but not by 100', () => {
+            expect(isLeapYear(2024)).to.be.true;
+            expect(isLeapYear(2008)).to.be.true;
         });
 
-        test('should return false for years divisible by 100 but not by 400', () => {
-            expect(isLeapYear(1900)).toBe(false);
-            expect(isLeapYear(2100)).toBe(false);
+        it('should return false for years divisible by 100 but not by 400', () => {
+            expect(isLeapYear(1900)).to.be.false;
+            expect(isLeapYear(2100)).to.be.false;
         });
 
-        test('should return true for years divisible by 400', () => {
-            expect(isLeapYear(2000)).toBe(true);
-            expect(isLeapYear(1600)).toBe(true);
+        it('should return true for years divisible by 400', () => {
+            expect(isLeapYear(2000)).to.be.true;
+            expect(isLeapYear(1600)).to.be.true;
         });
 
-        test('should return false for years not divisible by 4', () => {
-            expect(isLeapYear(2023)).toBe(false);
-            expect(isLeapYear(2021)).toBe(false);
+        it('should return false for years not divisible by 4', () => {
+            expect(isLeapYear(2023)).to.be.false;
+            expect(isLeapYear(2021)).to.be.false;
         });
     });
 
@@ -275,97 +276,97 @@ describe('Date Validation Functions', () => {
         const chanuFieldName = "Chanu's Date of Birth";
 
         // Happy Path Tests
-        test('should return null for a valid date', () => {
-            expect(validateDateInput('01/15/2023', bramFieldName)).toBeNull();
+        it('should return null for a valid date', () => {
+            expect(validateDateInput('01/15/2023', bramFieldName)).to.be.null;
         });
 
-        test('should return null for a valid leap year date', () => {
-            expect(validateDateInput('02/29/2024', chanuFieldName)).toBeNull();
+        it('should return null for a valid leap year date', () => {
+            expect(validateDateInput('02/29/2024', chanuFieldName)).to.be.null;
         });
 
-        test('should return null for date at year boundary', () => {
-            expect(validateDateInput('12/31/2023', bramFieldName)).toBeNull();
-            expect(validateDateInput('01/01/1900', chanuFieldName)).toBeNull();
+        it('should return null for date at year boundary', () => {
+            expect(validateDateInput('12/31/2023', bramFieldName)).to.be.null;
+            expect(validateDateInput('01/01/1900', chanuFieldName)).to.be.null;
         });
         
         // Year Range Tests
-        test('should return error for year before 1900', () => {
-            expect(validateDateInput('01/15/1899', bramFieldName)).toBe("Bram's Date of Birth: Year must be between 1900 and 2023.");
+        it('should return error for year before 1900', () => {
+            expect(validateDateInput('01/15/1899', bramFieldName)).to.equal("Bram's Date of Birth: Year must be between 1900 and 2023.");
         });
 
-        test('should return error for year after current year', () => {
+        it('should return error for year after current year', () => {
             mockCurrentYear = 2023; // Explicitly set for this test
-            expect(validateDateInput('01/15/2024', chanuFieldName)).toBe("Chanu's Date of Birth: Year must be between 1900 and 2023.");
+            expect(validateDateInput('01/15/2024', chanuFieldName)).to.equal("Chanu's Date of Birth: Year must be between 1900 and 2023.");
         });
 
-        test('should return null for current year', () => {
+        it('should return null for current year', () => {
             mockCurrentYear = 2023;
-            expect(validateDateInput('07/07/2023', bramFieldName)).toBeNull();
+            expect(validateDateInput('07/07/2023', bramFieldName)).to.be.null;
         });
 
         // Month Tests
-        test('should return error for invalid month (too high)', () => {
-            expect(validateDateInput('13/15/2023', chanuFieldName)).toBe("Chanu's Date of Birth: Month must be between 01 and 12.");
+        it('should return error for invalid month (too high)', () => {
+            expect(validateDateInput('13/15/2023', chanuFieldName)).to.equal("Chanu's Date of Birth: Month must be between 01 and 12.");
         });
 
-        test('should return error for invalid month (too low)', () => {
-            expect(validateDateInput('00/15/2023', bramFieldName)).toBe("Bram's Date of Birth: Month must be between 01 and 12.");
+        it('should return error for invalid month (too low)', () => {
+            expect(validateDateInput('00/15/2023', bramFieldName)).to.equal("Bram's Date of Birth: Month must be between 01 and 12.");
         });
 
         // Day Tests
-        test('should return error for invalid day (too high for month)', () => {
-            expect(validateDateInput('01/32/2023', chanuFieldName)).toBe("Chanu's Date of Birth: Day is invalid for the given month and year.");
-            expect(validateDateInput('04/31/2023', bramFieldName)).toBe("Bram's Date of Birth: Day is invalid for the given month and year.");
+        it('should return error for invalid day (too high for month)', () => {
+            expect(validateDateInput('01/32/2023', chanuFieldName)).to.equal("Chanu's Date of Birth: Day is invalid for the given month and year.");
+            expect(validateDateInput('04/31/2023', bramFieldName)).to.equal("Bram's Date of Birth: Day is invalid for the given month and year.");
         });
 
-        test('should return error for invalid day in February (non-leap year)', () => {
+        it('should return error for invalid day in February (non-leap year)', () => {
             mockCurrentYear = 2023; // Ensure it's a non-leap year
-            expect(validateDateInput('02/29/2023', chanuFieldName)).toBe("Chanu's Date of Birth: Day is invalid for the given month and year.");
+            expect(validateDateInput('02/29/2023', chanuFieldName)).to.equal("Chanu's Date of Birth: Day is invalid for the given month and year.");
         });
 
-        test('should return null for valid day in February (leap year)', () => {
+        it('should return null for valid day in February (leap year)', () => {
             mockCurrentYear = 2024; // Ensure it's a leap year
-            expect(validateDateInput('02/29/2024', bramFieldName)).toBeNull();
+            expect(validateDateInput('02/29/2024', bramFieldName)).to.be.null;
         });
 
-        test('should return error for day 30 in February (even in leap year)', () => {
+        it('should return error for day 30 in February (even in leap year)', () => {
              mockCurrentYear = 2024; // Ensure it's a leap year
-            expect(validateDateInput('02/30/2024', chanuFieldName)).toBe("Chanu's Date of Birth: Day is invalid for the given month and year.");
+            expect(validateDateInput('02/30/2024', chanuFieldName)).to.equal("Chanu's Date of Birth: Day is invalid for the given month and year.");
         });
         
-        test('should return error for day 0', () => {
-             expect(validateDateInput('01/00/2023', bramFieldName)).toBe("Bram's Date of Birth: Day is invalid for the given month and year.");
+        it('should return error for day 0', () => {
+             expect(validateDateInput('01/00/2023', bramFieldName)).to.equal("Bram's Date of Birth: Day is invalid for the given month and year.");
         });
 
         // Format Tests
-        test('should return error for invalid format (hyphens)', () => {
-            expect(validateDateInput('15-01-2023', chanuFieldName)).toBe("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+        it('should return error for invalid format (hyphens)', () => {
+            expect(validateDateInput('15-01-2023', chanuFieldName)).to.equal("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
 
-        test('should return error for invalid format (YYYY/MM/DD)', () => {
-            expect(validateDateInput('2023/01/15', bramFieldName)).toBe("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+        it('should return error for invalid format (YYYY/MM/DD)', () => {
+            expect(validateDateInput('2023/01/15', bramFieldName)).to.equal("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
 
-        test('should return error for invalid format (short year)', () => {
+        it('should return error for invalid format (short year)', () => {
             // Note: applyDobMask might prevent this from reaching validateDateInput with this exact input if it's active,
             // but testing the validator directly is important.
-            expect(validateDateInput('01/15/23', chanuFieldName)).toBe("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+            expect(validateDateInput('01/15/23', chanuFieldName)).to.equal("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
         
-        test('should return error for invalid format (long year)', () => {
-             expect(validateDateInput('01/15/20230', bramFieldName)).toBe("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+        it('should return error for invalid format (long year)', () => {
+             expect(validateDateInput('01/15/20230', bramFieldName)).to.equal("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
 
-        test('should return error for non-digit input', () => {
-            expect(validateDateInput('abc', chanuFieldName)).toBe("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+        it('should return error for non-digit input', () => {
+            expect(validateDateInput('abc', chanuFieldName)).to.equal("Chanu's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
 
-        test('should return error for empty string', () => {
-            expect(validateDateInput('', bramFieldName)).toBe("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
+        it('should return error for empty string', () => {
+            expect(validateDateInput('', bramFieldName)).to.equal("Bram's Date of Birth: Invalid format. Please use MM/DD/YYYY.");
         });
     });
 
-    // --- Tests for applyDobMask (existing tests) ---
+    // --- Tests for applyDobMask ---
     describe('applyDobMask', () => {
         let herDateInput;
 
@@ -404,53 +405,53 @@ describe('Date Validation Functions', () => {
         });
 
         // Test Case 1: Happy Path - full date entry
-        test('should format input as MM/DD/YYYY', () => {
+        it('should format input as MM/DD/YYYY', () => {
             herDateInput.setValue('1234567890'); // Simulate user typing
-            expect(herDateInput.value).toBe('12/34/5678');
+            expect(herDateInput.value).to.equal('12/34/5678');
         });
 
         // Test Case 2: Partial entry - MM/DD
-        test('should format input as MM/DD', () => {
+        it('should format input as MM/DD', () => {
             herDateInput.setValue('010120'); // Simulate user typing
-            expect(herDateInput.value).toBe('01/01/20');
+            expect(herDateInput.value).to.equal('01/01/20');
         });
 
         // Test Case 3: Further partial entry - MM/DD
-        test('should format partial input as MM/DD', () => {
+        it('should format partial input as MM/DD', () => {
             herDateInput.setValue('0101'); // Simulate user typing
-            expect(herDateInput.value).toBe('01/01');
+            expect(herDateInput.value).to.equal('01/01');
         });
         
         // Test Case 4: Edge case - Only MM
-        test('should format partial input as MM', () => {
+        it('should format partial input as MM', () => {
             herDateInput.setValue('12'); // Simulate user typing
-            expect(herDateInput.value).toBe('12');
+            expect(herDateInput.value).to.equal('12');
         });
 
         // Test Case 5: Non-digit characters should be stripped
-        test('should strip non-digit characters', () => {
+        it('should strip non-digit characters', () => {
             herDateInput.setValue('abc123def456ghi7890'); // Simulate user typing
-            expect(herDateInput.value).toBe('12/34/5678');
+            expect(herDateInput.value).to.equal('12/34/5678');
         });
 
         // Test Case 6: Input exceeding YYYY length should be truncated
-        test('should truncate input exceeding YYYY length', () => {
+        it('should truncate input exceeding YYYY length', () => {
             herDateInput.setValue('1234567890123'); // Simulate user typing
-            expect(herDateInput.value).toBe('12/34/5678');
+            expect(herDateInput.value).to.equal('12/34/5678');
         });
 
         // Test Case 7: Empty input
-        test('should handle empty input', () => {
+        it('should handle empty input', () => {
             herDateInput.setValue('');
-            expect(herDateInput.value).toBe('');
+            expect(herDateInput.value).to.equal('');
         });
         
         // Test Case 8: Input that is too short for full formatting
-        test('should handle short input correctly', () => {
+        it('should handle short input correctly', () => {
             herDateInput.setValue('1');
-            expect(herDateInput.value).toBe('1');
+            expect(herDateInput.value).to.equal('1');
             herDateInput.setValue('123');
-            expect(herDateInput.value).toBe('12/3');
+            expect(herDateInput.value).to.equal('12/3');
         });
     });
 
