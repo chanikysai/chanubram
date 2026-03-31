@@ -1,3 +1,46 @@
+// Helper function to check for leap year
+function isLeapYear(year) {
+    return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+}
+
+// Helper function to validate a single date input string (MM/DD/YYYY)
+function validateDateInput(dateString, fieldName) {
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = dateString.match(dateRegex);
+
+    if (!match) {
+        return `${fieldName}: Invalid format. Please use MM/DD/YYYY.`;
+    }
+
+    const month = parseInt(match[1], 10);
+    const day = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+
+    // 1. Year Range Check (e.g., 1900 to current year)
+    const currentYear = new Date().getFullYear();
+    if (year < 1900 || year > currentYear) {
+        return `${fieldName}: Year must be between 1900 and ${currentYear}.`;
+    }
+
+    // 2. Month Check
+    if (month < 1 || month > 12) {
+        return `${fieldName}: Month must be between 01 and 12.`;
+    }
+
+    // 3. Day Check (considering month and leap year)
+    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (isLeapYear(year)) {
+        daysInMonth[2] = 29; // February has 29 days in a leap year
+    }
+
+    if (day < 1 || day > daysInMonth[month]) {
+        return `${fieldName}: Day is invalid for the given month and year.`;
+    }
+
+    // If all checks pass
+    return null; // Indicate no error
+}
+
 // Function to apply MM/DD/YYYY masking to an input element
 function applyDobMask(elementId) {
     const inputElement = document.getElementById(elementId);
@@ -65,16 +108,22 @@ async function submitFormData(formElement) {
     applyDobMask('herDate');
     applyDobMask('yourDate');
 
-    const herDate = document.getElementById('herDate').value;
-    const yourDate = document.getElementById('yourDate').value;
+    const herDateInput = document.getElementById('herDate');
+    const yourDateInput = document.getElementById('yourDate');
+    const herDate = herDateInput.value;
+    const yourDate = yourDateInput.value;
     const latitude = document.getElementById('latitude').value;
     const longitude = document.getElementById('longitude').value;
 
-    // Basic validation for masked dates (optional but good practice)
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!dateRegex.test(herDate) || !dateRegex.test(yourDate)) {
-        alert('Please enter dates in MM/DD/YYYY format.');
-        return;
+    // Perform new client-side date validation
+    const herDateError = validateDateInput(herDate, 'Bram's Date of Birth');
+    const yourDateError = validateDateInput(yourDate, 'Chanu's Date of Birth');
+
+    if (herDateError || yourDateError) {
+        alert(herDateError || yourDateError); // Show the first error encountered
+        if (herDateError) herDateInput.focus();
+        else yourDateInput.focus();
+        return; // Prevent submission if validation fails
     }
 
     try {
